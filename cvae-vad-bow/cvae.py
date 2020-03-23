@@ -23,8 +23,6 @@ parser.add_argument('--print_per_step', dest='print_per_step', default=100, type
 parser.add_argument('--log_per_step', dest='log_per_step', default=20000, type=int, help='每更新多少次参数保存模型')
 parser.add_argument('--log_path', dest='log_path', default='log', type=str, help='记录模型位置')
 parser.add_argument('--inference', dest='inference', default=False, type=bool, help='是否测试')  #
-parser.add_argument('--reinforce', dest='reinforce', default=True, type=bool, help='是否强化')  #
-parser.add_argument('--use_true', dest='use_true', default=True, type=bool, help='是否使用真实回复')  #
 parser.add_argument('--max_len', dest='max_len', default=60, type=int, help='测试时最大解码步数')
 parser.add_argument('--model_path', dest='model_path', default='log//', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
@@ -126,25 +124,18 @@ def main():
             for data in dp_train.get_batch_data():
                 start_time = time.time()
                 feed_data = prepare_feed_data(data)
-                rl_loss, reward, loss, nll_loss, kld_loss, kld_weight, bow_loss, ppl = \
-                    train(model, feed_data, global_step)
-                if args.reinforce:
-                    rl_loss.mean().backward()
-                else:
-                    loss.mean().backward()  # 反向传播
+                loss, nll_loss, kld_loss, kld_weight, bow_loss, ppl = train(model, feed_data, global_step)
+                loss.mean().backward()  # 反向传播
                 optim.step()  # 更新参数
                 optim.optimizer.zero_grad()  # 清空梯度
                 use_time = time.time() - start_time
 
                 global_step += 1  # 参数更新次数+1
                 if global_step % args.print_per_step == 0:
-                    print('epoch: {:d}, global_step: {:d}, lr: {:g}, rl_loss: {:.2f}, reward: {:.2f}, nll_loss: {:.2f},'
-                          ' kld_loss: {:.2f}, kld_weight: {:g}, bow_loss: {:.2f}, ppl: {:.2f}, time: {:.2f}s/step'
-                          .format(epoch, global_step, optim.lr, rl_loss.mean().item(), reward.mean().item(),
-                                  nll_loss.mean().item(), kld_loss.mean().item(), kld_weight, bow_loss.mean().item(),
-                                  ppl.mean().exp().item(), use_time))
-                    summary_writer.add_scalar('train_rl', rl_loss.mean().item(), global_step)
-                    summary_writer.add_scalar('train_reward', reward.mean().item(), global_step)
+                    print('epoch: {:d}, global_step: {:d}, lr: {:g}, nll_loss: {:.2f}, kld_loss: {:.2f}, '
+                          'kld_weight: {:g}, bow_loss: {:.2f}, ppl: {:.2f}, time: {:.2f}s/step'
+                          .format(epoch, global_step, optim.lr, nll_loss.mean().item(), kld_loss.mean().item(),
+                                  kld_weight, bow_loss.mean().item(), ppl.mean().exp().item(), use_time))
                     summary_writer.add_scalar('train_nll', nll_loss.mean().item(), global_step)
                     summary_writer.add_scalar('train_kld', kld_loss.mean().item(), global_step)
                     summary_writer.add_scalar('train_weight', kld_weight, global_step)
@@ -160,9 +151,8 @@ def main():
                     model.eval()
                     reward, nll_loss, kld_loss, bow_loss, ppl = valid(model, dp_valid, global_step-1)
                     model.train()
-                    print('在验证集上的REWARD为: {:g}, NLL损失为: {:g}, KL损失为: {:g}, BOW损失为: {:g}, PPL为: {:g}'
-                          .format(reward, nll_loss, kld_loss, bow_loss, np.exp(ppl)))
-                    summary_writer.add_scalar('valid_reward', reward, global_step)
+                    print('在验证集上的NLL损失为: {:g}, KL损失为: {:g}, BOW损失为: {:g}, PPL为: {:g}'
+                          .format(nll_loss, kld_loss, bow_loss, np.exp(ppl)))
                     summary_writer.add_scalar('valid_nll', nll_loss, global_step)
                     summary_writer.add_scalar('valid_kld', kld_loss, global_step)
                     summary_writer.add_scalar('valid_bow', bow_loss, global_step)
@@ -176,9 +166,9 @@ def main():
             model.save_model(epoch, global_step, log_file)
 
             model.eval()
-            reward, nll_loss, kld_loss, bow_loss, ppl = valid(model, dp_valid, global_step-1)
-            print('在验证集上的REWARD为: {:g}, NLL损失为: {:g}, KL损失为: {:g}, BOW损失为: {:g}, PPL为: {:g}'
-                  .format(reward, nll_loss, kld_loss, bow_loss, np.exp(ppl)))
+            nll_loss, kld_loss, bow_loss, ppl = valid(model, dp_valid, global_step-1)
+            print('在验证集上的NLL损失为: {:g}, KL损失为: {:g}, BOW损失为: {:g}, PPL为: {:g}'
+                  .format(nll_loss, kld_loss, bow_loss, np.exp(ppl)))
             summary_writer.add_scalar('valid_reward', reward, global_step)
             summary_writer.add_scalar('valid_nll', nll_loss, global_step)
             summary_writer.add_scalar('valid_kld', kld_loss, global_step)
@@ -197,8 +187,8 @@ def main():
 
         model.eval()  # 切换到测试模式，会停用dropout等等
         reward, nll_loss, kld_loss, bow_loss, ppl = valid(model, dp_test, global_step-1)
-        print('在测试集上的REWARD为: {:g}, NLL损失为: {:g}, KL损失为: {:g}, BOW损失为: {:g}, PPL为: {:g}'
-              .format(reward, nll_loss, kld_loss, bow_loss, np.exp(ppl)))
+        print('在测试集上的NLL损失为: {:g}, KL损失为: {:g}, BOW损失为: {:g}, PPL为: {:g}'
+              .format(nll_loss, kld_loss, bow_loss, np.exp(ppl)))
 
         len_results = []  # 统计生成结果的总长度
         for data in dp_test.get_batch_data():
@@ -213,7 +203,7 @@ def main():
                 new_data['response'] = responses[idx]
                 new_data['result'] = sentence_processor.index2word(result)  # 将输出的句子转回单词的形式
                 len_results.append(len(new_data['result']))
-                fw.write(json.dumps(new_data) + '\n')
+                fw.write(json.dumps(new_data, ensure_ascii=False) + '\n')
 
         fw.close()
         print(f'生成句子平均长度: {1.0 * sum(len_results) / len(len_results)}')
@@ -285,40 +275,7 @@ def compute_loss(outputs, labels, masks, global_step):
     # 损失
     loss = nll_loss + kld_weight * kld_loss + bow_loss
 
-    with torch.no_grad():
-        neutral_vec_label = torch.tensor([0.5, 0.5, 0.5]).float().unsqueeze(0).unsqueeze(1).\
-            repeat(batch_size, labels_affect.size(1), 1)  # 输入的中性词 [batch, len_post, 3]
-        neutral_vec_output = torch.tensor([0.5, 0.5, 0.5]).float().unsqueeze(0).unsqueeze(1).\
-            repeat(batch_size, output_affect.size(1), 1)  # 输出的中性词 [batch, len_response, 3]
-        if args.gpu:
-            neutral_vec_label = neutral_vec_label.cuda()
-            neutral_vec_output = neutral_vec_output.cuda()
-        affect_mask = 1 - (labels_affect == neutral_vec_label).prod(2)  # 输入中中性词的mask [batch_size, len_post]
-        post_affect = (labels_affect * affect_mask.unsqueeze(2)).sum(1)  # 去掉中性词后输入包含的情感
-        affect_mask = 1 - (output_affect == neutral_vec_output).prod(2)  # 输出中中性词的mask [batch_size, len_post]
-        result_affect = (output_affect * affect_mask.unsqueeze(2)).sum(1)  # 去掉中性词后输出包含的情感
-
-        post_affect_v = post_affect[:, 0]  # batch
-        post_affect_a = post_affect[:, 1]
-        post_affect_d = post_affect[:, 2]
-
-        result_affect_v = result_affect[:, 0]
-        result_affect_a = result_affect[:, 1]
-        result_affect_d = result_affect[:, 2]
-
-        reward_v = 1 / (1 + (post_affect_v - result_affect_v).abs())  # [0, 10]
-        reward_a = (post_affect_a - result_affect_a).abs()
-        reward_a = (reward_a-reward_a.min()) / (reward_a.max()-reward_a.min())
-        reward_d = (post_affect_d - result_affect_d).abs()
-        reward_d = (reward_d-reward_d.min()) / (reward_d.max() - reward_d.min())
-
-        _reward = reward_v + reward_a + reward_d  # [batch]
-        baseline_reward = _reward.mean()
-        reward = _reward - baseline_reward
-
-    rl_loss = nll_loss + kld_weight * kld_loss + 1.0 * nll_loss * reward + bow_loss
-
-    return rl_loss, _reward, loss, nll_loss, kld_loss, kld_weight, bow_loss, ppl
+    return loss, nll_loss, kld_loss, kld_weight, bow_loss, ppl
 
 
 def train(model, feed_data, global_step):
@@ -330,13 +287,12 @@ def train(model, feed_data, global_step):
     labels_word = feed_data['responses'][:, 1:]  # 去掉start_id
     labels = (labels_word, labels_affect)
     masks = feed_data['masks']
-    rl_loss, _reward, loss, nll_loss, kld_loss, kld_weight, bow_loss, ppl = \
-        compute_loss(outputs, labels, masks, global_step)
-    return rl_loss, _reward, loss, nll_loss, kld_loss, kld_weight, bow_loss, ppl
+    loss, nll_loss, kld_loss, kld_weight, bow_loss, ppl = compute_loss(outputs, labels, masks, global_step)
+    return loss, nll_loss, kld_loss, kld_weight, bow_loss, ppl
 
 
 def valid(model, data_processor, global_step):
-    rewards, nll_losses, kld_losses, bow_losses, ppls = [], [], [], [], []
+    nll_losses, kld_losses, bow_losses, ppls = [], [], [], [], []
     for data in data_processor.get_batch_data():
         feed_data = prepare_feed_data(data)
         output_vocab, bow_predict, _mu, _logvar, mu, logvar = model(feed_data, use_true=args.use_true, gpu=args.gpu)
@@ -348,20 +304,18 @@ def valid(model, data_processor, global_step):
         labels = (labels_word, labels_affect)
         masks = feed_data['masks']
 
-        _, reward, _, nll_loss, kld_loss, kld_weight, bow_loss, ppl = compute_loss(outputs, labels, masks, global_step)
-        rewards.extend(reward.detach().tolist())
+        _, nll_loss, kld_loss, kld_weight, bow_loss, ppl = compute_loss(outputs, labels, masks, global_step)
         nll_losses.extend(nll_loss.detach().tolist())
         kld_losses.extend(kld_loss.detach().tolist())
         bow_losses.extend(bow_loss.detach().tolist())
         ppls.extend(ppl.detach().tolist())
 
-    rewards = np.array(rewards)
     nll_losses = np.array(nll_losses)
     kld_losses = np.array(kld_losses) * kld_weight
     bow_losses = np.array(bow_losses)
     ppls = np.array(ppls)
 
-    return rewards.mean(), nll_losses.mean(), kld_losses.mean(), bow_losses.mean(), ppls.mean()
+    return nll_losses.mean(), kld_losses.mean(), bow_losses.mean(), ppls.mean()
 
 
 def test(model, feed_data):

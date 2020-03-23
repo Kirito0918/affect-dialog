@@ -213,7 +213,7 @@ def main():
                 new_data['response'] = responses[idx]
                 new_data['result'] = sentence_processor.index2word(result)  # 将输出的句子转回单词的形式
                 len_results.append(len(new_data['result']))
-                fw.write(json.dumps(new_data) + '\n')
+                fw.write(json.dumps(new_data, ensure_ascii=False) + '\n')
 
         fw.close()
         print(f'生成句子平均长度: {1.0 * sum(len_results) / len(len_results)}')
