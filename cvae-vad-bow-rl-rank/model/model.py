@@ -7,7 +7,6 @@ from PriorNet import PriorNet
 from RecognizeNet import RecognizeNet
 from Decoder import Decoder
 from PrepareState import PrepareState
-from Attention import Attention
 
 
 class Model(nn.Module):
@@ -64,25 +63,10 @@ class Model(nn.Module):
 
         # 解码器
         self.decoder = Decoder(config.decoder_cell_type,  # rnn类型
-                               config.embedding_size + config.affect_embedding_size
-                               + config.attention_size + config.post_encoder_output_size,
+                               config.embedding_size + config.affect_embedding_size + config.post_encoder_output_size,
                                config.decoder_output_size,  # 输出维度
                                config.decoder_num_layers,  # rnn层数
                                config.dropout)  # dropout概率
-
-        # 注意力
-        self.attention = Attention(config.decoder_output_size,
-                                   config.post_encoder_output_size,
-                                   config.attention_type,
-                                   config.attention_size,
-                                   config.dropout)
-
-        # 自注意力
-        self.self_attention = Attention(config.decoder_output_size,
-                                        config.decoder_output_size,
-                                        config.attention_type,
-                                        config.attention_size,
-                                        config.dropout)
 
         # bow预测
         self.bow_predictor = nn.Sequential(
@@ -108,23 +92,14 @@ class Model(nn.Module):
                 embed_responses = torch.cat([self.embedding(id_responses), self.affect_embedding(id_responses)], 2)
 
                 # state: [layers, batch, dim]
-                encoder_output, state_posts = self.post_encoder(embed_posts.transpose(0, 1), len_posts)
-                encoder_output = encoder_output.transpose(0, 1)  # [batch, seq, dim]
-                encoder_output_y, state_responses = self.response_encoder(embed_responses.transpose(0, 1),
-                                                                          len_responses)
-                encoder_output_y = encoder_output_y.transpose(0, 1)
+                _, state_posts = self.post_encoder(embed_posts.transpose(0, 1), len_posts)
+                _, state_responses = self.response_encoder(embed_responses.transpose(0, 1), len_responses)
                 if isinstance(state_posts, tuple):
                     state_posts = state_posts[0]
                 if isinstance(state_responses, tuple):
                     state_responses = state_responses[0]
                 x = state_posts[-1, :, :]  # [batch, dim]
                 y = state_responses[-1, :, :]  # [batch, dim]
-                attn_masks = (1 - F.one_hot(len_posts, len_posts.max() + 1).cumsum(1))[:, :-1].bool()  # [batch, len]
-                attn_masks_y = (1 - F.one_hot(len_responses, len_responses.max() + 1).cumsum(1))[:, :-1].bool()
-                self_attn_x, _ = self.self_attention(x.unsqueeze(1), encoder_output, attn_masks)  # [batch, seq, dim]
-                self_attn_y, _ = self.self_attention(y.unsqueeze(1), encoder_output_y, attn_masks_y)
-                x = x + self_attn_x.squeeze(1)
-                y = y + self_attn_y.squeeze(1)
 
                 _mu, _logvar = self.prior_net(x)  # [batch, latent]
                 mu, logvar = self.recognize_net(x, y)  # [batch, latent]
@@ -143,15 +118,12 @@ class Model(nn.Module):
                 for idx in range(len_decoder):
                     if idx == 0:
                         state = first_state  # 解码器初始状态
-                        decoder_input = torch.cat([decoder_inputs[idx], init_attn, x.unsqueeze(0)], 2)
+                        decoder_input = torch.cat([decoder_inputs[idx], x.unsqueeze(0)], 2)
                     else:
-                        decoder_input = torch.cat([decoder_inputs[idx], attn, x.unsqueeze(0)], 2)
+                        decoder_input = torch.cat([decoder_inputs[idx], x.unsqueeze(0)], 2)
                     # output: [1, batch, dim_out]
                     # state: [num_layer, batch, dim_out]
                     output, state = self.decoder(decoder_input, state)
-                    attn, _ = self.attention(output.transpose(0, 1), encoder_output, attn_masks)
-                    attn = attn.transpose(0, 1)
-                    output = output + attn
                     outputs.append(output)
 
                 outputs = torch.cat(outputs, 0).transpose(0, 1)  # [batch, seq-1, dim_out]
@@ -171,23 +143,14 @@ class Model(nn.Module):
                 embed_responses = torch.cat([self.embedding(id_responses), self.affect_embedding(id_responses)], 2)
 
                 # state: [layers, batch, dim]
-                encoder_output, state_posts = self.post_encoder(embed_posts.transpose(0, 1), len_posts)
-                encoder_output_y, state_responses = self.response_encoder(embed_responses.transpose(0, 1),
-                                                                          len_responses)
-                encoder_output = encoder_output.transpose(0, 1)  # [batch, seq, dim]
-                encoder_output_y = encoder_output_y.transpose(0, 1)
+                _, state_posts = self.post_encoder(embed_posts.transpose(0, 1), len_posts)
+                _, state_responses = self.response_encoder(embed_responses.transpose(0, 1), len_responses)
                 if isinstance(state_posts, tuple):
                     state_posts = state_posts[0]
                 if isinstance(state_responses, tuple):
                     state_responses = state_responses[0]
                 x = state_posts[-1, :, :]  # [batch, dim]
                 y = state_responses[-1, :, :]  # [batch, dim]
-                attn_masks = (1 - F.one_hot(len_posts, len_posts.max() + 1).cumsum(1))[:, :-1].bool()  # [batch, len]
-                attn_masks_y = (1 - F.one_hot(len_responses, len_responses.max() + 1).cumsum(1))[:, :-1].bool()
-                self_attn_x, _ = self.self_attention(x.unsqueeze(1), encoder_output, attn_masks)  # [batch, seq, dim]
-                self_attn_y, _ = self.self_attention(y.unsqueeze(1), encoder_output_y, attn_masks_y)
-                x = x + self_attn_x.squeeze(1)
-                y = y + self_attn_y.squeeze(1)
 
                 _mu, _logvar = self.prior_net(x)  # [batch, latent]
                 mu, logvar = self.recognize_net(x, y)  # [batch, latent]
@@ -197,24 +160,19 @@ class Model(nn.Module):
 
                 first_state = self.prepare_state(torch.cat([z, x], 1))  # [num_layer, batch, dim_out]
                 first_input_id = (torch.ones((1, batch_size)) * self.config.start_id).long()
-                init_attn = torch.zeros([1, batch_size, self.config.attention_size])
                 if gpu:
                     first_input_id = first_input_id.cuda()
-                    init_attn = init_attn.cuda()
 
                 outputs = []
                 for idx in range(len_decoder):
                     if idx == 0:
                         state = first_state
                         decoder_input = torch.cat([self.embedding(first_input_id),
-                                                   self.affect_embedding(first_input_id), init_attn, x.unsqueeze(0)], 2)
+                                                   self.affect_embedding(first_input_id), x.unsqueeze(0)], 2)
                     else:
                         decoder_input = torch.cat([self.embedding(next_input_id),
-                                                   self.affect_embedding(next_input_id), attn, x.unsqueeze(0)], 2)
+                                                   self.affect_embedding(next_input_id), x.unsqueeze(0)], 2)
                     output, state = self.decoder(decoder_input, state)
-                    attn, _ = self.attention(output.transpose(0, 1), encoder_output, attn_masks)
-                    attn = attn.transpose(0, 1)
-                    output = output + attn
                     outputs.append(output)
 
                     vocab_prob = self.projector(output)  # [1, batch, num_vocab]
@@ -232,14 +190,10 @@ class Model(nn.Module):
             embed_posts = torch.cat([self.embedding(id_posts), self.affect_embedding(id_posts)], 2)
 
             # state: [layers, batch, dim]
-            encoder_output, state_posts = self.post_encoder(embed_posts.transpose(0, 1), len_posts)
-            encoder_output = encoder_output.transpose(0, 1)  # [batch, seq, dim]
+            _, state_posts = self.post_encoder(embed_posts.transpose(0, 1), len_posts)
             if isinstance(state_posts, tuple):  # 如果是lstm则取h
                 state_posts = state_posts[0]  # [layers, batch, dim]
             x = state_posts[-1, :, :]  # 取最后一层 [batch, dim]
-            attn_masks = (1 - F.one_hot(len_posts, len_posts.max() + 1).cumsum(1))[:, :-1].bool()  # [batch, len]
-            self_attn_x, _ = self.self_attention(x.unsqueeze(1), encoder_output, attn_masks)  # [batch, seq, dim]
-            x = x + self_attn_x.squeeze(1)
 
             _mu, _logvar = self.prior_net(x)  # [batch, latent]
             z = _mu + (0.5 * _logvar).exp() * sampled_latents  # [batch, latent]
@@ -247,27 +201,22 @@ class Model(nn.Module):
             first_state = self.prepare_state(torch.cat([z, x], 1))  # [num_layer, batch, dim_out]
             done = torch.tensor([0] * batch_size).bool()
             first_input_id = (torch.ones((1, batch_size)) * self.config.start_id).long()
-            init_attn = torch.zeros([1, batch_size, self.config.attention_size])
             if gpu:
                 done = done.cuda()
                 first_input_id = first_input_id.cuda()
-                init_attn = init_attn.cuda()
 
             outputs = []
             for idx in range(max_len):
                 if idx == 0:  # 第一个时间步
                     state = first_state  # 解码器初始状态
                     decoder_input = torch.cat([self.embedding(first_input_id), self.affect_embedding(first_input_id),
-                                               init_attn, x.unsqueeze(0)], 2)
+                                               x.unsqueeze(0)], 2)
                 else:
                     decoder_input = torch.cat([self.embedding(next_input_id), self.affect_embedding(next_input_id),
-                                               attn, x.unsqueeze(0)], 2)
+                                               x.unsqueeze(0)], 2)
                 # output: [1, batch, dim_out]
                 # state: [num_layers, batch, dim_out]
                 output, state = self.decoder(decoder_input, state)
-                attn, _ = self.attention(output.transpose(0, 1), encoder_output, attn_masks)
-                attn = attn.transpose(0, 1)
-                output = output + attn
                 outputs.append(output)
 
                 vocab_prob = self.projector(output)  # [1, batch, num_vocab]
@@ -305,8 +254,6 @@ class Model(nn.Module):
                     'prepare_state': self.prepare_state.state_dict(),
                     'decoder': self.decoder.state_dict(),
                     'projector': self.projector.state_dict(),
-                    'attention': self.attention.state_dict(),
-                    'self_attention': self.self_attention.state_dict(),
                     'bow_predictor': self.bow_predictor.state_dict(),
                     'epoch': epoch,
                     'global_step': global_step}, path)
@@ -323,8 +270,6 @@ class Model(nn.Module):
         self.prepare_state.load_state_dict(checkpoint['prepare_state'])
         self.decoder.load_state_dict(checkpoint['decoder'])
         self.projector.load_state_dict(checkpoint['projector'])
-        self.attention.load_state_dict(checkpoint['attention'])
-        self.self_attention.load_state_dict(checkpoint['self_attention'])
         self.bow_predictor.load_state_dict(checkpoint['bow_predictor'])
         epoch = checkpoint['epoch']
         global_step = checkpoint['global_step']

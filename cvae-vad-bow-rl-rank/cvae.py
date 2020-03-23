@@ -14,22 +14,22 @@ import numpy as np
 from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--trainset_path', dest='trainset_path', default='data/raw/trainset.txt', type=str, help='训练集位置')
-parser.add_argument('--validset_path', dest='validset_path', default='data/raw/validset.txt', type=str, help='验证集位置')
-parser.add_argument('--testset_path', dest='testset_path', default='data/raw/testset.txt', type=str, help='测试集位置')
+parser.add_argument('--trainset_path', dest='trainset_path', default='data/raw/dialogues_train_singleturn.txt', type=str, help='训练集位置')
+parser.add_argument('--validset_path', dest='validset_path', default='data/raw/dialogues_validation_singleturn.txt', type=str, help='验证集位置')
+parser.add_argument('--testset_path', dest='testset_path', default='data/raw/dialogues_test_singleturn.txt', type=str, help='测试集位置')
 parser.add_argument('--embed_path', dest='embed_path', default='data/embed.txt', type=str, help='词向量位置')
 parser.add_argument('--vad_path', dest='vad_path', default='data/vad.txt', type=str, help='vad位置')
 parser.add_argument('--result_path', dest='result_path', default='result', type=str, help='测试结果位置')
 parser.add_argument('--print_per_step', dest='print_per_step', default=100, type=int, help='每更新多少次参数summary学习情况')
-parser.add_argument('--log_per_step', dest='log_per_step', default=30000, type=int, help='每更新多少次参数保存模型')
+parser.add_argument('--log_per_step', dest='log_per_step', default=20000, type=int, help='每更新多少次参数保存模型')
 parser.add_argument('--log_path', dest='log_path', default='log', type=str, help='记录模型位置')
-parser.add_argument('--inference', dest='inference', default=True, type=bool, help='是否测试')  #
+parser.add_argument('--inference', dest='inference', default=False, type=bool, help='是否测试')  #
 parser.add_argument('--inference_by_data', dest='inference_by_data', default=True, type=bool, help='是否通过数据集进行测试')  #
 parser.add_argument('--reinforce', dest='reinforce', default=True, type=bool, help='是否强化')  #
 parser.add_argument('--use_true', dest='use_true', default=True, type=bool, help='是否使用真实回复')  #
 parser.add_argument('--max_len', dest='max_len', default=60, type=int, help='测试时最大解码步数')
 parser.add_argument('--sample_times', dest='sample_times', default=20, type=int, help='测试时采样多少次')
-parser.add_argument('--model_path', dest='model_path', default='log/027000003395000.model', type=str, help='载入模型位置')  #
+parser.add_argument('--model_path', dest='model_path', default='log/', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')  #
 parser.add_argument('--max_epoch', dest='max_epoch', default=30, type=int, help='最大训练epoch')
@@ -215,7 +215,7 @@ def main():
                     new_data['response'] = responses[idx]
                     new_data['result'] = sentence_processor.index2word(result)  # 将输出的句子转回单词的形式
                     len_results.append(len(new_data['result']))
-                    fw.write(json.dumps(new_data) + '\n')
+                    fw.write(json.dumps(new_data, ensure_ascii=False) + '\n')
 
             fw.close()
             print(f'生成句子平均长度: {1.0 * sum(len_results) / len(len_results)}')
@@ -241,20 +241,18 @@ def prepare_feed_data(data, inference=False):
     len_labels = torch.tensor([l - 1 for l in data['len_responses']]).long()  # [batch] 标签没有start_id，长度-1
     masks = (1 - F.one_hot(len_labels, len_labels.max() + 1).cumsum(1))[:, :-1]  # [batch, len_decoder]
     batch_size = masks.size(0)
-    sampled_latents = [torch.randn((1, batch_size, config.latent_size)) for _ in range(3)]
-    sampled_latents = torch.cat(sampled_latents, 0).sum(0) / 3 ** 0.5
 
     if not inference:  # 训练时的输入
         feed_data = {'posts': torch.tensor(data['posts']).long(),  # [batch, len_encoder]
                      'len_posts': torch.tensor(data['len_posts']).long(),  # [batch]
                      'responses': torch.tensor(data['responses']).long(),  # [batch, len_decoder]
                      'len_responses': torch.tensor(data['len_responses']).long(),  # [batch]
-                     'sampled_latents': sampled_latents,  # [batch, latent_size]
+                     'sampled_latents': torch.randn((1, batch_size, config.latent_size)),  # [batch, latent_size]
                      'masks': masks.float()}  # [batch, len_decoder]
     else:  # 测试时的输入
         feed_data = {'posts': torch.tensor(data['posts']).long(),
                      'len_posts': torch.tensor(data['len_posts']).long(),
-                     'sampled_latents': sampled_latents}
+                     'sampled_latents': torch.randn((1, batch_size, config.latent_size))}
 
     if args.gpu:  # 将数据转移到gpu上
         for key, value in feed_data.items():
