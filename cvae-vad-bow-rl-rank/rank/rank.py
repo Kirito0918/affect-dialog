@@ -13,7 +13,7 @@ from tqdm import tqdm
 parser = argparse.ArgumentParser()
 parser.add_argument('--samples_path', dest='samples_path', default='../result', type=str, help='采样的位置')
 parser.add_argument('--vad_path', dest='vad_path', default='../data/vad.txt', type=str, help='vad字典的位置')
-parser.add_argument('--seq2seq_path', dest='seq2seq_path', default='./log/004000000480000.model', type=str, help='seq2seq位置')
+parser.add_argument('--seq2seq_path', dest='seq2seq_path', default='./log/', type=str, help='seq2seq位置')
 parser.add_argument('--result_path', dest='result_path', default='./result', type=str, help='结果位置')
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')
 args = parser.parse_args()
