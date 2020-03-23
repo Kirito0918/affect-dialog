@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from Embedding import Embedding
 from Encoder import Encoder
 from Decoder import Decoder
@@ -75,7 +74,6 @@ class Model(nn.Module):
                 # output: [1, batch, dim_out]
                 # state: [num_layer, batch, dim_out]
                 output, state = self.decoder(decoder_input, state)
-                # attn: [batch, 1, attention_size]
                 outputs.append(output)
 
             outputs = torch.cat(outputs, 0).transpose(0, 1)  # [batch, seq-1, dim_out]
