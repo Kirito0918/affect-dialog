@@ -1,3 +1,4 @@
+import nltk
 from nltk.corpus import wordnet
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
@@ -5,6 +6,9 @@ from nltk.stem import WordNetLemmatizer
 import argparse
 import regex as re
 
+
+nltk.download('wordnet')
+nltk.download('stopwords')
 parser = argparse.ArgumentParser()
 parser.add_argument('--vocabulary_path', dest='vocabulary_path', default='../data/embed.txt', type=str, help='词汇表位置')
 parser.add_argument('--vad_path', dest='vad_path', default='../data/raw/NRC-VAD-Lexicon.txt', type=str, help='vad字典位置')

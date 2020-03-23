@@ -54,7 +54,7 @@ class Model(nn.Module):
                                           config.decoder_num_layers)
 
         self.decoder = Decoder(config.decoder_cell_type,
-                               config.embedding_size + config.affect_embedding_size,
+                               config.embedding_size + config.affect_embedding_size + config.encoder_output_size,
                                config.decoder_output_size,
                                config.decoder_num_layers,
                                config.dropout)
@@ -94,7 +94,7 @@ class Model(nn.Module):
             for idx in range(len_decoder):
                 if idx == 0:
                     state = first_state  # 解码器初始状态
-                decoder_input = decoder_inputs[idx]  # 当前时间步输入 [1, batch, embed_size]
+                decoder_input = torch.cat([decoder_inputs[idx], x.unsqueeze(0)], 2)  # 当前时间步输入 [1, batch, embed_size+context_size]
                 # output: [1, batch, dim_out]
                 # state: [num_layer, batch, dim_out]
                 output, state = self.decoder(decoder_input, state)
@@ -130,10 +130,12 @@ class Model(nn.Module):
                 if idx == 0:
                     state = first_state  # 解码器初始状态
                     decoder_input = torch.cat([self.embedding(first_input_id),
-                                               self.affect_embedding(first_input_id)], 2)
+                                               self.affect_embedding(first_input_id),
+                                               x.unsqueeze(0)], 2)
                 else:
                     decoder_input = torch.cat([self.embedding(next_input_id),
-                                               self.affect_embedding(next_input_id)], 2)
+                                               self.affect_embedding(next_input_id),
+                                               x.unsqueeze(0)], 2)
                 # output: [1, batch, dim_out]
                 # state: [num_layer, batch, dim_out]
                 output, state = self.decoder(decoder_input, state)
