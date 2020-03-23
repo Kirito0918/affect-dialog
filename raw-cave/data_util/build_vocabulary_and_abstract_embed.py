@@ -9,7 +9,7 @@ parser.add_argument('--test_path', dest='test_path', default='../data/raw/dialog
 parser.add_argument('--glove_path', dest='glove_path', default='../data/raw/glove.840B.300d.txt', type=str, help='预训练的词向量位置')
 parser.add_argument('--glove_dim', dest='glove_dim', default=300, type=int, help='预训练的词向量维度')
 parser.add_argument('--output_path', dest='output_path', default='../data/embed.txt', type=str, help='输出结果位置')
-parser.add_argument('--num_vocabulary', dest='num_vocabulary', default=35000, type=int, help='选取词汇表大小')
+parser.add_argument('--num_vocabulary', dest='num_vocabulary', default=25000, type=int, help='选取词汇表大小')
 parser.add_argument('--pad_token', dest='pad_token', default='<pad>', type=str, help='pad的记法')
 parser.add_argument('--start_token', dest='start_token', default='<s>', type=str, help='start的记法')
 parser.add_argument('--end_token', dest='end_token', default='</s>', type=str, help='end的记法')
