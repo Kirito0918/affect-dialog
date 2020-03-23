@@ -13,18 +13,18 @@ import time
 import numpy as np
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--trainset_path', dest='trainset_path', default='data/raw/trainset.txt', type=str, help='训练集位置')
-parser.add_argument('--validset_path', dest='validset_path', default='data/raw/validset.txt', type=str, help='验证集位置')
-parser.add_argument('--testset_path', dest='testset_path', default='data/raw/testset.txt', type=str, help='测试集位置')
+parser.add_argument('--trainset_path', dest='trainset_path', default='data/raw/dialogues_train_singleturn.txt', type=str, help='训练集位置')
+parser.add_argument('--validset_path', dest='validset_path', default='data/raw/dialogues_validation_singleturn.txt', type=str, help='验证集位置')
+parser.add_argument('--testset_path', dest='testset_path', default='data/raw/dialogues_test_singleturn.txt', type=str, help='测试集位置')
 parser.add_argument('--embed_path', dest='embed_path', default='data/embed.txt', type=str, help='词向量位置')
 parser.add_argument('--vad_path', dest='vad_path', default='data/vad.txt', type=str, help='vad位置')
 parser.add_argument('--result_path', dest='result_path', default='result', type=str, help='测试结果位置')
 parser.add_argument('--print_per_step', dest='print_per_step', default=100, type=int, help='每更新多少次参数summary学习情况')
-parser.add_argument('--log_per_step', dest='log_per_step', default=30000, type=int, help='每更新多少次参数保存模型')
+parser.add_argument('--log_per_step', dest='log_per_step', default=20000, type=int, help='每更新多少次参数保存模型')
 parser.add_argument('--log_path', dest='log_path', default='log', type=str, help='记录模型位置')
 parser.add_argument('--inference', dest='inference', default=False, type=bool, help='是否测试')  #
 parser.add_argument('--max_len', dest='max_len', default=60, type=int, help='测试时最大解码步数')
-parser.add_argument('--model_path', dest='model_path', default='log/run1578642600/007000000840000.model', type=str, help='载入模型位置')  #
+parser.add_argument('--model_path', dest='model_path', default='log//', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')  #
 parser.add_argument('--max_epoch', dest='max_epoch', default=20, type=int, help='最大训练epoch')
@@ -187,7 +187,7 @@ def main():
                 new_data['response'] = responses[idx]
                 new_data['result'] = sentence_processor.index2word(result)  # 将输出的句子转回单词的形式
                 len_results.append(len(new_data['result']))
-                fw.write(json.dumps(new_data) + '\n')
+                fw.write(json.dumps(new_data, ensure_ascii=False) + '\n')
 
         fw.close()
         print(f'生成句子平均长度: {1.0 * sum(len_results) / len(len_results)}')
