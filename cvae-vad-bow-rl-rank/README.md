@@ -1,0 +1,1 @@
+vae+vad+rl+bow+context+attention+编码器最后一步的自注意力，及多次采样取均值
