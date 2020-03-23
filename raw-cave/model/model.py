@@ -54,7 +54,7 @@ class Model(nn.Module):
 
         # 解码器
         self.decoder = Decoder(config.decoder_cell_type,  # rnn类型
-                               config.embedding_size,  # 输入维度
+                               config.embedding_size+config.post_encoder_output_size,  # 输入维度
                                config.decoder_output_size,  # 输出维度
                                config.decoder_num_layers,  # rnn层数
                                config.dropout)  # dropout概率
@@ -102,7 +102,7 @@ class Model(nn.Module):
             for idx in range(len_decoder):
                 if idx == 0:
                     state = first_state  # 解码器初始状态
-                decoder_input = decoder_inputs[idx]  # 当前时间步输入 [1, batch, embed_size]
+                decoder_input = torch.cat([decoder_inputs[idx], x.unsqueeze(0)], 2)  # 当前时间步输入 [1, batch, embed_size]
                 # output: [1, batch, dim_out]
                 # state: [num_layer, batch, dim_out]
                 output, state = self.decoder(decoder_input, state)
@@ -141,9 +141,9 @@ class Model(nn.Module):
             for idx in range(max_len):
                 if idx == 0:  # 第一个时间步
                     state = first_state  # 解码器初始状态
-                    decoder_input = self.embedding(first_input_id)  # 解码器初始输入 [1, batch, embed_size]
+                    decoder_input = torch.cat([self.embedding(first_input_id), x.unsqueeze(0)], 2)  # 解码器初始输入
                 else:
-                    decoder_input = self.embedding(next_input_id)  # [1, batch, embed_size]
+                    decoder_input = torch.cat([self.embedding(next_input_id), x.unsqueeze(0)], 2)
                 # output: [1, batch, dim_out]
                 # state: [num_layers, batch, dim_out]
                 output, state = self.decoder(decoder_input, state)
