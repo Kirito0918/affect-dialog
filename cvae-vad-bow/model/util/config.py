@@ -26,7 +26,7 @@ class Config(object):
     response_encoder_bidirectional = True
 
     # 潜变量参数
-    latent_size = 00  # 潜变量的维度
+    latent_size = 100  # 潜变量的维度
 
     # 先验网络参数
     dims_prior = [110]  # 先验网络多层感知机中间层的隐藏单元数，像[dim1, dim2,...,dimn]这样传入
