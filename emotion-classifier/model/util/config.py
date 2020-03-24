@@ -4,6 +4,7 @@ class Config(object):
     start_id = 1
     end_id = 2
     unk_id = 3
+    num_classifications = 7
 
     # 词汇表大小，根据预处理截取的词汇表设置
     num_vocab = 25000
@@ -14,8 +15,8 @@ class Config(object):
 
     # 编码器解码器层数/输出大小
     encoder_cell_type = 'GRU'  # in ['GRU', 'LSTM']
-    encoder_decoder_num_layers = 1
-    encoder_decoder_output_size = 128
+    encoder_num_layers = 1
+    encoder_output_size = 128
     encoder_bidirectional = True  # 是否是双向rnn
 
     # 优化参数
