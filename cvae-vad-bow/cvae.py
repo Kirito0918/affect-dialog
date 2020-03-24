@@ -169,7 +169,6 @@ def main():
             nll_loss, kld_loss, bow_loss, ppl = valid(model, dp_valid, global_step-1)
             print('在验证集上的NLL损失为: {:g}, KL损失为: {:g}, BOW损失为: {:g}, PPL为: {:g}'
                   .format(nll_loss, kld_loss, bow_loss, np.exp(ppl)))
-            summary_writer.add_scalar('valid_reward', reward, global_step)
             summary_writer.add_scalar('valid_nll', nll_loss, global_step)
             summary_writer.add_scalar('valid_kld', kld_loss, global_step)
             summary_writer.add_scalar('valid_bow', bow_loss, global_step)
