@@ -279,7 +279,7 @@ def compute_loss(outputs, labels, masks, global_step):
 
 
 def train(model, feed_data, global_step):
-    output_vocab, bow_predict, _mu, _logvar, mu, logvar = model(feed_data, use_true=args.use_true, gpu=args.gpu)
+    output_vocab, bow_predict, _mu, _logvar, mu, logvar = model(feed_data, gpu=args.gpu)
     with torch.no_grad():
         output_affect = model.affect_embedding(output_vocab.argmax(2))
         labels_affect = model.affect_embedding(feed_data['posts'][:, 1:])  # 去掉start id
@@ -292,10 +292,10 @@ def train(model, feed_data, global_step):
 
 
 def valid(model, data_processor, global_step):
-    nll_losses, kld_losses, bow_losses, ppls = [], [], [], [], []
+    nll_losses, kld_losses, bow_losses, ppls = [], [], [], []
     for data in data_processor.get_batch_data():
         feed_data = prepare_feed_data(data)
-        output_vocab, bow_predict, _mu, _logvar, mu, logvar = model(feed_data, use_true=args.use_true, gpu=args.gpu)
+        output_vocab, bow_predict, _mu, _logvar, mu, logvar = model(feed_data, gpu=args.gpu)
         with torch.no_grad():
             output_affect = model.affect_embedding(output_vocab.argmax(2))
             labels_affect = model.affect_embedding(feed_data['posts'][:, 1:])
