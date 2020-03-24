@@ -10,7 +10,7 @@ parser.add_argument('--max_turn', dest='max_turn', default=8, type=int, help='�
 args = parser.parse_args()
 
 
-def DD2ManyTurn(data_path, save_path, max_turn):
+def dd2_many_turn(data_path, save_path, max_turn):
     if not os.path.isfile(data_path):
         print('请输入正确的数据路径！')
         return
@@ -46,4 +46,4 @@ def DD2ManyTurn(data_path, save_path, max_turn):
 
 
 if __name__ == '__main__':
-    DD2ManyTurn(args.data_path, args.save_path, args.max_turn)
+    dd2_many_turn(args.data_path, args.save_path, args.max_turn)

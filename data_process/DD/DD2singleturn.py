@@ -9,7 +9,7 @@ parser.add_argument('--save_path', dest='save_path', default='./result', type=st
 args = parser.parse_args()
 
 
-def DD2SingleTurn(data_path, save_path):
+def dd2_single_turn(data_path, save_path):
     if not os.path.isfile(data_path):
         print('请输入正确的数据路径！')
         return
@@ -32,4 +32,4 @@ def DD2SingleTurn(data_path, save_path):
 
 
 if __name__ == '__main__':
-    DD2SingleTurn(args.data_path, args.save_path)
+    dd2_single_turn(args.data_path, args.save_path)
