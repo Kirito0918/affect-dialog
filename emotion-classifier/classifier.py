@@ -3,7 +3,6 @@ from model.model import Model
 from model.Optim import Optim
 from model.util.sentence_processor import SentenceProcessor
 from model.util.data_processor import DataProcessor
-from torch.utils.tensorboard import SummaryWriter
 import torch
 import torch.nn.functional as F
 import argparse
