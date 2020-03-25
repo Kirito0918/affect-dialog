@@ -24,7 +24,7 @@ def dd2_sentiment_classification(text_path, emo_path, save_path):
     fe = open(emo_path, 'r', encoding='utf8')
     fs = open(save_path, 'w', encoding='utf8')
 
-    for ss, texts in enumerate(ft):  # 原数据集第693句买自行车的少一个标签
+    for ss, texts in enumerate(ft):  # 原数据集第673句买自行车的少一个标签
         emotions = fe.readline().strip().split()
         texts = texts.strip().split('__eou__')[:-1]
         assert len(texts) == len(emotions)
