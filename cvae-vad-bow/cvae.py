@@ -24,7 +24,7 @@ parser.add_argument('--log_per_step', dest='log_per_step', default=20000, type=i
 parser.add_argument('--log_path', dest='log_path', default='log', type=str, help='记录模型位置')
 parser.add_argument('--inference', dest='inference', default=False, type=bool, help='是否测试')  #
 parser.add_argument('--max_len', dest='max_len', default=60, type=int, help='测试时最大解码步数')
-parser.add_argument('--model_path', dest='model_path', default='log/run1585032737/040000000190160.model', type=str, help='载入模型位置')  #
+parser.add_argument('--model_path', dest='model_path', default='log//', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')  #
 parser.add_argument('--max_epoch', dest='max_epoch', default=120, type=int, help='最大训练epoch')
@@ -185,7 +185,7 @@ def main():
         dp_test = DataProcessor(testset, config.batch_size, sentence_processor, shuffle=False)
 
         model.eval()  # 切换到测试模式，会停用dropout等等
-        reward, nll_loss, kld_loss, bow_loss, ppl = valid(model, dp_test, global_step-1)
+        nll_loss, kld_loss, bow_loss, ppl = valid(model, dp_test, global_step-1)
         print('在测试集上的NLL损失为: {:g}, KL损失为: {:g}, BOW损失为: {:g}, PPL为: {:g}'
               .format(nll_loss, kld_loss, bow_loss, np.exp(ppl)))
 
