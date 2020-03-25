@@ -20,10 +20,9 @@ parser.add_argument('--embed_path', dest='embed_path', default='data/embed.txt',
 parser.add_argument('--vad_path', dest='vad_path', default='data/vad.txt', type=str, help='vad位置')
 parser.add_argument('--result_path', dest='result_path', default='result', type=str, help='测试结果位置')
 parser.add_argument('--print_per_step', dest='print_per_step', default=100, type=int, help='每更新多少次参数summary学习情况')
-parser.add_argument('--log_per_step', dest='log_per_step', default=20000, type=int, help='每更新多少次参数保存模型')
 parser.add_argument('--log_path', dest='log_path', default='log', type=str, help='记录模型位置')
-parser.add_argument('--inference', dest='inference', default=False, type=bool, help='是否测试')  #
-parser.add_argument('--model_path', dest='model_path', default='log//', type=str, help='载入模型位置')  #
+parser.add_argument('--inference', dest='inference', default=True, type=bool, help='是否测试')  #
+parser.add_argument('--model_path', dest='model_path', default='log/run1585117406/006000000008826.model', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')  #
 parser.add_argument('--max_epoch', dest='max_epoch', default=40, type=int, help='最大训练epoch')
@@ -113,7 +112,6 @@ def main():
 
     # 训练
     if not args.inference:
-        summary_writer = SummaryWriter(os.path.join(log_dir, 'summary'))  # 创建tensorboard记录的文件夹
         dp_train = DataProcessor(trainset, config.batch_size, sentence_processor)  # 数据的迭代器
         dp_valid = DataProcessor(validset, config.batch_size, sentence_processor, shuffle=False)
 
@@ -122,7 +120,7 @@ def main():
             for data in dp_train.get_batch_data():
                 start_time = time.time()
                 feed_data = prepare_feed_data(data)
-                nll_loss = train(model, feed_data)
+                nll_loss, precision = train(model, feed_data)
                 nll_loss.mean().backward()  # 反向传播
                 optim.step()  # 更新参数
                 optim.optimizer.zero_grad()  # 清空梯度
@@ -130,20 +128,10 @@ def main():
 
                 global_step += 1  # 参数更新次数+1
                 if global_step % args.print_per_step == 0:
-                    print('epoch: {:d}, global_step: {:d}, lr: {:g}, nll_loss: {:.2f}, time: {:.2f}s/step'
-                          .format(epoch, global_step, optim.lr, nll_loss.mean().item(), use_time))
-                    summary_writer.add_scalar('train_nll', nll_loss.mean().item(), global_step)
-                    summary_writer.flush()  # 将缓冲区写入文件
-
-                if global_step % args.log_per_step == 0:  # 保存模型
-                    log_file = os.path.join(log_dir, '{:03d}{:012d}.model'.format(epoch, global_step))
-                    model.save_model(epoch, global_step, log_file)
-                    model.eval()
-                    nll_loss = valid(model, dp_valid)
-                    model.train()
-                    print('在验证集上的NLL损失为: {:g}'.format(nll_loss))
-                    summary_writer.add_scalar('valid_nll', nll_loss, global_step)
-                    summary_writer.flush()  # 将缓冲区写入文件
+                    print('epoch: {:d}, global_step: {:d}, lr: {:g}, nll_loss: {:.2f}, precision: {:.2%},'
+                          ' time: {:.2f}s/step'
+                          .format(epoch, global_step, optim.lr, nll_loss.mean().item(),
+                                  precision.mean().item(), use_time))
 
             epoch += 1  # 数据集迭代次数+1
             optim.update_lr(epoch)  # 调整学习率
@@ -151,12 +139,9 @@ def main():
             log_file = os.path.join(log_dir, '{:03d}{:012d}.model'.format(epoch, global_step))
             model.save_model(epoch, global_step, log_file)
             model.eval()
-            nll_loss = valid(model, dp_valid)
-            print('在验证集上的NLL损失为: {:g}'.format(nll_loss))
-            summary_writer.add_scalar('valid_nll', nll_loss, global_step)
-            summary_writer.flush()  # 将缓冲区写入文件
+            nll_loss, precision = valid(model, dp_valid)
+            print('在验证集上的NLL损失为: {:g}, 准确率为: {:.2%}'.format(nll_loss, precision))
 
-        summary_writer.close()
     else:  # 测试
         if not os.path.exists(args.result_path):  # 创建结果文件夹
             os.makedirs(args.result_path)
@@ -166,10 +151,9 @@ def main():
         dp_test = DataProcessor(testset, config.batch_size, sentence_processor, shuffle=False)
 
         model.eval()
-        nll_loss = valid(model, dp_test)  # 评估困惑度
-        print('在测试集上的NLL损失为: {:g}'.format(nll_loss))
+        nll_loss, precision = valid(model, dp_test)
+        print('在测试集上的NLL损失为: {:g}, 准确率为: {:.2%}'.format(nll_loss, precision))
 
-        num_correct = 0  # 统计生成结果的总长度
         for data in dp_test.get_batch_data():
             texts = data['str_texts']
             emotions = data['emotions']
@@ -182,11 +166,7 @@ def main():
                 new_data['emotion'] = emotions[idx]
                 new_data['result'] = result  # 将输出的句子转回单词的形式
                 fw.write(json.dumps(new_data, ensure_ascii=False) + '\n')
-                if emotions[idx] == result:
-                    num_correct += 1
-
         fw.close()
-        print(f'生成句子平均长度: {1.0 * sum(len_results) / len(len_results)}')
 
 
 def prepare_feed_data(data):
@@ -201,30 +181,34 @@ def prepare_feed_data(data):
     return feed_data
 
 
-def compute_loss(outputs, labels, masks):
+def compute_loss(outputs, labels):
     # outputs: [batch, 7]
     nll_loss = F.nll_loss(outputs.clamp_min(1e-12).log(), labels, reduction='none')  # [batch]
-    return nll_loss
+    precision = (outputs.argmax(1) == labels).float()
+    return nll_loss, precision
 
 
 def train(model, feed_data):
     outputs = model(feed_data)  # 前向传播
     labels = feed_data['emotions']
-    nll_loss = compute_loss(outputs, labels)  # 计算损失
-    return nll_loss
+    nll_loss, precision = compute_loss(outputs, labels)  # 计算损失
+    return nll_loss, precision
 
 
 def valid(model, data_processor):
     nll_losses = []
+    precisions = []
     for data in data_processor.get_batch_data():
         feed_data = prepare_feed_data(data)
         outputs = model(feed_data)
         labels = feed_data['emotions']  # 去掉start_id
-        nll_loss = compute_loss(outputs, labels)
+        nll_loss, precision = compute_loss(outputs, labels)
         nll_losses.extend(nll_loss.detach().tolist())
+        precisions.extend(precision.detach().tolist())
 
     nll_losses = np.array(nll_losses)
-    return nll_losses.mean()
+    precisions = np.array(precisions)
+    return nll_losses.mean(), precisions.mean()
 
 
 def test(model, feed_data):
