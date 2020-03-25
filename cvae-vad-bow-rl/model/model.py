@@ -112,7 +112,7 @@ class Model(nn.Module):
                 for idx in range(len_decoder):
                     if idx == 0:
                         state = first_state  # 解码器初始状态
-                    decoder_input = torch.cat([decoder_inputs[idx]], x.unsqueeze(0), 2)
+                    decoder_input = torch.cat([decoder_inputs[idx], x.unsqueeze(0)], 2)
                     # output: [1, batch, dim_out]
                     # state: [num_layer, batch, dim_out]
                     output, state = self.decoder(decoder_input, state)
