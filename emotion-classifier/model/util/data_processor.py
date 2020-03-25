@@ -17,12 +17,12 @@ class DataProcessor(object):
         it = DataIterator(self.data, self.batch_size)
 
         for batch_data in it.get_batch_data():
-            texts = [], emotions = []
+            texts, emotions = [], []
             for item in batch_data:
-                texts.append(item['text'])
+                texts.append(item['text'].strip().split())
                 emotions.append(item['emotion'])
 
-            id_texts, len_texts = []
+            id_texts, len_texts = [], []
             for text in texts:
                 id_text, len_text = self.sp.word2index(text)
                 id_texts.append(id_text)
