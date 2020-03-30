@@ -253,6 +253,7 @@ def compute_loss(outputs, labels, masks, global_step):
 
     # output_vocab: [batch, len_decoder, num_vocab] 对每个单词的softmax概率
     output_vocab, bow_predict, output_affect, _mu, _logvar, mu, logvar = outputs
+    # labels_affect: [batch, len_encoder, 3]
     labels_word, labels_affect = labels
 
     token_per_batch = masks.sum(1)  # 每个样本要计算损失的token数 [batch]
@@ -294,9 +295,9 @@ def compute_loss(outputs, labels, masks, global_step):
             neutral_vec_label = neutral_vec_label.cuda()
             neutral_vec_output = neutral_vec_output.cuda()
         affect_mask = 1 - (labels_affect == neutral_vec_label).prod(2)  # 输入中中性词的mask [batch_size, len_post]
-        post_affect = (labels_affect * affect_mask.unsqueeze(2)).sum(1)  # 去掉中性词后输入包含的情感
+        post_affect = (labels_affect * affect_mask.unsqueeze(2)).sum(1) / affect_mask.sum(1).unsqueeze(1)  # [batch, 3]
         affect_mask = 1 - (output_affect == neutral_vec_output).prod(2)  # 输出中中性词的mask [batch_size, len_post]
-        result_affect = (output_affect * affect_mask.unsqueeze(2)).sum(1)  # 去掉中性词后输出包含的情感
+        result_affect = (output_affect * affect_mask.unsqueeze(2)).sum(1) / affect_mask.sum(1).unsqueeze(1)
 
         post_affect_v = post_affect[:, 0]  # batch
         post_affect_a = post_affect[:, 1]
@@ -306,11 +307,9 @@ def compute_loss(outputs, labels, masks, global_step):
         result_affect_a = result_affect[:, 1]
         result_affect_d = result_affect[:, 2]
 
-        reward_v = 1 / (1 + (post_affect_v - result_affect_v).abs())  # [0, 10]
+        reward_v = 1 - (post_affect_v - result_affect_v).abs()  # [0, 1]
         reward_a = (post_affect_a - result_affect_a).abs()
-        reward_a = (reward_a-reward_a.min()) / (reward_a.max()-reward_a.min())
         reward_d = (post_affect_d - result_affect_d).abs()
-        reward_d = (reward_d-reward_d.min()) / (reward_d.max() - reward_d.min())
 
         _reward = reward_v + reward_a + reward_d  # [batch]
         baseline_reward = _reward.mean()
