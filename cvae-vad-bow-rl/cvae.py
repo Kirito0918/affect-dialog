@@ -22,11 +22,11 @@ parser.add_argument('--result_path', dest='result_path', default='result', type=
 parser.add_argument('--print_per_step', dest='print_per_step', default=100, type=int, help='每更新多少次参数summary学习情况')
 parser.add_argument('--log_per_step', dest='log_per_step', default=20000, type=int, help='每更新多少次参数保存模型')
 parser.add_argument('--log_path', dest='log_path', default='log', type=str, help='记录模型位置')
-parser.add_argument('--inference', dest='inference', default=False, type=bool, help='是否测试')  #
+parser.add_argument('--inference', dest='inference', default=True, type=bool, help='是否测试')  #
 parser.add_argument('--reinforce', dest='reinforce', default=True, type=bool, help='是否强化')  #
 parser.add_argument('--use_true', dest='use_true', default=True, type=bool, help='是否使用真实回复')  #
 parser.add_argument('--max_len', dest='max_len', default=60, type=int, help='测试时最大解码步数')
-parser.add_argument('--model_path', dest='model_path', default='log//', type=str, help='载入模型位置')  #
+parser.add_argument('--model_path', dest='model_path', default='log/run1585593204/040000000190160.model', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')  #
 parser.add_argument('--max_epoch', dest='max_epoch', default=40, type=int, help='最大训练epoch')
@@ -295,9 +295,9 @@ def compute_loss(outputs, labels, masks, global_step):
             neutral_vec_label = neutral_vec_label.cuda()
             neutral_vec_output = neutral_vec_output.cuda()
         affect_mask = 1 - (labels_affect == neutral_vec_label).prod(2)  # 输入中中性词的mask [batch_size, len_post]
-        post_affect = (labels_affect * affect_mask.unsqueeze(2)).sum(1) / affect_mask.sum(1).unsqueeze(1)  # [batch, 3]
-        affect_mask = 1 - (output_affect == neutral_vec_output).prod(2)  # 输出中中性词的mask [batch_size, len_post]
-        result_affect = (output_affect * affect_mask.unsqueeze(2)).sum(1) / affect_mask.sum(1).unsqueeze(1)
+        post_affect = (labels_affect * affect_mask.unsqueeze(2)).sum(1) / affect_mask.sum(1).float().unsqueeze(1).clamp_min(1e-12)  # [batch, 3]
+        affect_mask = 1 - (output_affect == neutral_vec_output).prod(2)  # 输出中中性词的mask
+        result_affect = (output_affect * affect_mask.unsqueeze(2)).sum(1) / affect_mask.sum(1).float().unsqueeze(1).clamp_min(1e-12)
 
         post_affect_v = post_affect[:, 0]  # batch
         post_affect_a = post_affect[:, 1]
