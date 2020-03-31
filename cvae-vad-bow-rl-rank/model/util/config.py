@@ -15,14 +15,14 @@ class Config(object):
 
     # post编码器参数
     post_encoder_cell_type = 'GRU'  # in ['GRU', 'LSTM']
-    post_encoder_output_size = 300  # 隐藏层大小
-    post_encoder_num_layers = 2  # 层数
+    post_encoder_output_size = 128  # 隐藏层大小
+    post_encoder_num_layers = 1  # 层数
     post_encoder_bidirectional = True  # 是否是双向rnn
 
     # response编码器参数
     response_encoder_cell_type = 'GRU'  # in ['GRU', 'LSTM']
-    response_encoder_output_size = 300
-    response_encoder_num_layers = 2
+    response_encoder_output_size = 128
+    response_encoder_num_layers = 1
     response_encoder_bidirectional = True
 
     # 潜变量参数
@@ -46,7 +46,7 @@ class Config(object):
     lr_decay = 1.0  # 学习率衰减，每过1个epoch衰减的百分比
     weight_decay = 0  # 权值decay
     max_grad_norm = 5
-    kl_step = 4000  # 更新多少次参数之后kl项权值达到1
+    kl_step = 10000  # 更新多少次参数之后kl项权值达到1
     dropout = 0.0  # 这里只有编解码器设置了dropout
 
 

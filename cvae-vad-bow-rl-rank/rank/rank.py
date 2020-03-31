@@ -13,7 +13,7 @@ from tqdm import tqdm
 parser = argparse.ArgumentParser()
 parser.add_argument('--samples_path', dest='samples_path', default='../result', type=str, help='采样的位置')
 parser.add_argument('--vad_path', dest='vad_path', default='../data/vad.txt', type=str, help='vad字典的位置')
-parser.add_argument('--seq2seq_path', dest='seq2seq_path', default='./log/', type=str, help='seq2seq位置')
+parser.add_argument('--seq2seq_path', dest='seq2seq_path', default='./log/027000000128358.model', type=str, help='seq2seq位置')
 parser.add_argument('--result_path', dest='result_path', default='./result', type=str, help='结果位置')
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')
 args = parser.parse_args()
@@ -121,9 +121,9 @@ def main():
         neutral_results = np.tile(np.array([0.5, 0.5, 0.5]).reshape(1, 1, -1), (sample_times, vad_results.shape[1], 1))
 
         posts_mask = 1 - (vad_posts == neutral_posts).astype(np.float).prod(2)  # [sample, len]
-        affect_posts = (vad_posts * np.expand_dims(posts_mask, 2)).sum(1)
+        affect_posts = (vad_posts * np.expand_dims(posts_mask, 2)).sum(1) / posts_mask.sum(1).clip(1e-12).reshape(sample_times, 1)
         results_mask = 1 - (vad_results == neutral_results).astype(np.float).prod(2)  # [sample, len]
-        affect_results = (vad_results * np.expand_dims(results_mask, 2)).sum(1)
+        affect_results = (vad_results * np.expand_dims(results_mask, 2)).sum(1) / results_mask.sum(1).clip(1e-12).reshape(sample_times, 1)
 
         post_v = affect_posts[:, 0]  # batch
         post_a = affect_posts[:, 1]
@@ -132,13 +132,11 @@ def main():
         result_a = affect_results[:, 1]
         result_d = affect_results[:, 2]
 
-        score_v = 1 / (1 + np.abs(post_v - result_v))  # [0, 1]
-
+        score_v = 1 - np.abs(post_v - result_v)  # [0, 1]
         score_a = np.abs(post_a - result_a)
-        score_a = (score_a - score_a.min()) / (score_a.max() - score_a.min())
-
         score_d = np.abs(post_d - result_d)
-        score_d = (score_d - score_d.min()) / (score_d.max() - score_d.min())
+        score_vad = score_v + score_a + score_d
+        score_vad = (score_vad - score_vad.min()) / (score_vad.max() - score_vad.min())
 
         # 3. 情感分数
         score_af = ((vad_results - neutral_results) ** 2).sum(2) ** 0.5  # [sample, len]
@@ -150,19 +148,19 @@ def main():
         score_len = np.array([len(str_result) for str_result in str_results])  # [sample]
         score_len = (score_len - score_len.min()) / (score_len.max() - score_len.min())
 
-        score = score_ppl + 2 * score_v + 2 * score_a + 2 * score_d + 2 * score_af + score_len
+        score = 0.2*score_ppl + 0.6*score_vad + 0.1*score_af + 0.1*score_len
         output_id = score.argmax()
 
         output = {'post': str_post, 'response': str_response, 'result': str_results[output_id]}
-        fw.write(json.dumps(output) + '\n')
+        fw.write(json.dumps(output, ensure_ascii=False) + '\n')
 
         fwd.write('post: {}\n'.format(' '.join(str_post)))
         fwd.write('chosen response: {}\n'.format(' '.join(str_results[output_id])))
         fwd.write('response: {}\n'.format(' '.join(str_response)))
         for idx, str_result in enumerate(str_results):
-            fwd.write('candidate{}: {} {:.2f} {:.2f} {:.2f} {:.2f} {:.2f} {:.2f} {:.2f}\n'
-                      .format(idx, ' '.join(str_result), score[idx], score_ppl[idx], 2*score_v[idx], 2*score_a[idx],
-                              2*score_d[idx], 2*score_af[idx], score_len[idx]))
+            fwd.write('candidate{}: {} (t:{:.2f} p:{:.2f} vad:{:.2f} af:{:.2f} l:{:.2f})\n'
+                      .format(idx, ' '.join(str_result), score[idx], 0.1*score_ppl[idx], 0.7*score_vad[idx],
+                              0.1*score_af[idx], 0.1*score_len[idx]))
         fwd.write('\n')
     fw.close()
     fwd.close()

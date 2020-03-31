@@ -23,16 +23,15 @@ parser.add_argument('--result_path', dest='result_path', default='result', type=
 parser.add_argument('--print_per_step', dest='print_per_step', default=100, type=int, help='每更新多少次参数summary学习情况')
 parser.add_argument('--log_per_step', dest='log_per_step', default=20000, type=int, help='每更新多少次参数保存模型')
 parser.add_argument('--log_path', dest='log_path', default='log', type=str, help='记录模型位置')
-parser.add_argument('--inference', dest='inference', default=False, type=bool, help='是否测试')  #
-parser.add_argument('--inference_by_data', dest='inference_by_data', default=True, type=bool, help='是否通过数据集进行测试')  #
+parser.add_argument('--inference', dest='inference', default=True, type=bool, help='是否测试')  #
 parser.add_argument('--reinforce', dest='reinforce', default=True, type=bool, help='是否强化')  #
 parser.add_argument('--use_true', dest='use_true', default=True, type=bool, help='是否使用真实回复')  #
 parser.add_argument('--max_len', dest='max_len', default=60, type=int, help='测试时最大解码步数')
 parser.add_argument('--sample_times', dest='sample_times', default=20, type=int, help='测试时采样多少次')
-parser.add_argument('--model_path', dest='model_path', default='log/', type=str, help='载入模型位置')  #
+parser.add_argument('--model_path', dest='model_path', default='log/040000000190160.model', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')  #
-parser.add_argument('--max_epoch', dest='max_epoch', default=30, type=int, help='最大训练epoch')
+parser.add_argument('--max_epoch', dest='max_epoch', default=40, type=int, help='最大训练epoch')
 
 args = parser.parse_args()  # 程序运行参数
 
@@ -190,7 +189,7 @@ def main():
             summary_writer.flush()  # 将缓冲区写入文件
 
         summary_writer.close()
-    elif args.inference_by_data:  # 测试
+    else:  # 测试
         if not os.path.exists(args.result_path):  # 创建结果文件夹
             os.makedirs(args.result_path)
 
@@ -219,22 +218,6 @@ def main():
 
             fw.close()
             print(f'生成句子平均长度: {1.0 * sum(len_results) / len(len_results)}')
-    else:
-        model.eval()
-        print('进行手动输入测试，输入exit退出测试')
-        while True:
-            print('input a post: ', end='')
-            str_post = str(input())
-            if str_post == 'exit':
-                return
-            str_post = str_post.strip().split()
-            id_post, len_post = sentence_processor.word2index(str_post)
-            id_post = [config.start_id] + id_post + [config.end_id]
-            len_post += 2
-            data = {'posts': [id_post], 'len_posts': [len_post]}
-            feed_data = prepare_feed_data(data, inference=True)
-            result = test(model, feed_data)[0]
-            print(f'response: {sentence_processor.index2word(result)}')
 
 
 def prepare_feed_data(data, inference=False):
@@ -247,12 +230,12 @@ def prepare_feed_data(data, inference=False):
                      'len_posts': torch.tensor(data['len_posts']).long(),  # [batch]
                      'responses': torch.tensor(data['responses']).long(),  # [batch, len_decoder]
                      'len_responses': torch.tensor(data['len_responses']).long(),  # [batch]
-                     'sampled_latents': torch.randn((1, batch_size, config.latent_size)),  # [batch, latent_size]
+                     'sampled_latents': torch.randn((batch_size, config.latent_size)),  # [batch, latent_size]
                      'masks': masks.float()}  # [batch, len_decoder]
     else:  # 测试时的输入
         feed_data = {'posts': torch.tensor(data['posts']).long(),
                      'len_posts': torch.tensor(data['len_posts']).long(),
-                     'sampled_latents': torch.randn((1, batch_size, config.latent_size))}
+                     'sampled_latents': torch.randn((batch_size, config.latent_size))}
 
     if args.gpu:  # 将数据转移到gpu上
         for key, value in feed_data.items():
@@ -304,17 +287,19 @@ def compute_loss(outputs, labels, masks, global_step):
     loss = nll_loss + kld_weight * kld_loss + bow_loss
 
     with torch.no_grad():
-        neutral_vec_label = torch.tensor([0.5, 0.5, 0.5]).float().unsqueeze(0).unsqueeze(1).\
+        neutral_vec_label = torch.tensor([0.5, 0.5, 0.5]).float().unsqueeze(0).unsqueeze(1). \
             repeat(batch_size, labels_affect.size(1), 1)  # 输入的中性词 [batch, len_post, 3]
-        neutral_vec_output = torch.tensor([0.5, 0.5, 0.5]).float().unsqueeze(0).unsqueeze(1).\
+        neutral_vec_output = torch.tensor([0.5, 0.5, 0.5]).float().unsqueeze(0).unsqueeze(1). \
             repeat(batch_size, output_affect.size(1), 1)  # 输出的中性词 [batch, len_response, 3]
         if args.gpu:
             neutral_vec_label = neutral_vec_label.cuda()
             neutral_vec_output = neutral_vec_output.cuda()
         affect_mask = 1 - (labels_affect == neutral_vec_label).prod(2)  # 输入中中性词的mask [batch_size, len_post]
-        post_affect = (labels_affect * affect_mask.unsqueeze(2)).sum(1)  # 去掉中性词后输入包含的情感
-        affect_mask = 1 - (output_affect == neutral_vec_output).prod(2)  # 输出中中性词的mask [batch_size, len_post]
-        result_affect = (output_affect * affect_mask.unsqueeze(2)).sum(1)  # 去掉中性词后输出包含的情感
+        post_affect = (labels_affect * affect_mask.unsqueeze(2)).sum(1) / affect_mask.sum(1).float().unsqueeze(
+            1).clamp_min(1e-12)  # [batch, 3]
+        affect_mask = 1 - (output_affect == neutral_vec_output).prod(2)  # 输出中中性词的mask
+        result_affect = (output_affect * affect_mask.unsqueeze(2)).sum(1) / affect_mask.sum(1).float().unsqueeze(
+            1).clamp_min(1e-12)
 
         post_affect_v = post_affect[:, 0]  # batch
         post_affect_a = post_affect[:, 1]
@@ -324,11 +309,9 @@ def compute_loss(outputs, labels, masks, global_step):
         result_affect_a = result_affect[:, 1]
         result_affect_d = result_affect[:, 2]
 
-        reward_v = 1 / (1 + (post_affect_v - result_affect_v).abs())  # [0, 10]
+        reward_v = 1 - (post_affect_v - result_affect_v).abs()  # [0, 1]
         reward_a = (post_affect_a - result_affect_a).abs()
-        reward_a = (reward_a-reward_a.min()) / (reward_a.max()-reward_a.min())
         reward_d = (post_affect_d - result_affect_d).abs()
-        reward_d = (reward_d-reward_d.min()) / (reward_d.max() - reward_d.min())
 
         _reward = reward_v + reward_a + reward_d  # [batch]
         baseline_reward = _reward.mean()

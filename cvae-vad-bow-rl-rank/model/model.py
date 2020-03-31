@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from Embedding import Embedding
 from Encoder import Encoder
 from PriorNet import PriorNet
@@ -12,7 +11,6 @@ from PrepareState import PrepareState
 class Model(nn.Module):
     def __init__(self, config):
         super(Model, self).__init__()
-        assert config.attention_size == config.decoder_output_size  # 为了将注意力和解码器输出求和来节省参数
         self.config = config
 
         # 定义嵌入层
@@ -63,7 +61,7 @@ class Model(nn.Module):
 
         # 解码器
         self.decoder = Decoder(config.decoder_cell_type,  # rnn类型
-                               config.embedding_size + config.affect_embedding_size + config.post_encoder_output_size,
+                               config.embedding_size+config.affect_embedding_size+config.post_encoder_output_size,
                                config.decoder_output_size,  # 输出维度
                                config.decoder_num_layers,  # rnn层数
                                config.dropout)  # dropout概率
@@ -75,7 +73,7 @@ class Model(nn.Module):
         )
 
         # 输出层
-        self.projector = nn.Sequential(nn.Linear(config.attention_size, config.num_vocab), nn.Softmax(-1))
+        self.projector = nn.Sequential(nn.Linear(config.decoder_output_size, config.num_vocab), nn.Softmax(-1))
 
     def forward(self, inputs, inference=False, use_true=False, max_len=60, gpu=True):
         if not inference:  # 训练
@@ -86,7 +84,6 @@ class Model(nn.Module):
                 len_responses = inputs['len_responses']  # [batch, seq]
                 sampled_latents = inputs['sampled_latents']  # [batch, latent_size]
                 len_decoder = id_responses.size(1) - 1
-                batch_size = id_posts.size(0)
 
                 embed_posts = torch.cat([self.embedding(id_posts), self.affect_embedding(id_posts)], 2)
                 embed_responses = torch.cat([self.embedding(id_responses), self.affect_embedding(id_responses)], 2)
@@ -110,17 +107,12 @@ class Model(nn.Module):
                 first_state = self.prepare_state(torch.cat([z, x], 1))  # [num_layer, batch, dim_out]
                 decoder_inputs = embed_responses[:, :-1, :].transpose(0, 1)  # [seq-1, batch, embed_size]
                 decoder_inputs = decoder_inputs.split([1] * len_decoder, 0)  # seq-1个[1, batch, embed_size]
-                init_attn = torch.zeros([1, batch_size, self.config.attention_size])
-                if gpu:
-                    init_attn = init_attn.cuda()
 
                 outputs = []
                 for idx in range(len_decoder):
                     if idx == 0:
                         state = first_state  # 解码器初始状态
-                        decoder_input = torch.cat([decoder_inputs[idx], x.unsqueeze(0)], 2)
-                    else:
-                        decoder_input = torch.cat([decoder_inputs[idx], x.unsqueeze(0)], 2)
+                    decoder_input = torch.cat([decoder_inputs[idx], x.unsqueeze(0)], 2)
                     # output: [1, batch, dim_out]
                     # state: [num_layer, batch, dim_out]
                     output, state = self.decoder(decoder_input, state)
@@ -170,8 +162,8 @@ class Model(nn.Module):
                         decoder_input = torch.cat([self.embedding(first_input_id),
                                                    self.affect_embedding(first_input_id), x.unsqueeze(0)], 2)
                     else:
-                        decoder_input = torch.cat([self.embedding(next_input_id),
-                                                   self.affect_embedding(next_input_id), x.unsqueeze(0)], 2)
+                        decoder_input = torch.cat([self.embedding(next_input_id), self.affect_embedding(next_input_id),
+                                                   x.unsqueeze(0)], 2)
                     output, state = self.decoder(decoder_input, state)
                     outputs.append(output)
 
