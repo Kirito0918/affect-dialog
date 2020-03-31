@@ -1,4 +1,4 @@
-from word_frequency_statistics import statistics
+from select_vocab import statistics
 import argparse
 import os
 
