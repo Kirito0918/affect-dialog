@@ -25,7 +25,7 @@ parser.add_argument('--log_path', dest='log_path', default='log', type=str, help
 parser.add_argument('--inference', dest='inference', default=True, type=bool, help='是否测试')  #
 parser.add_argument('--reinforce', dest='reinforce', default=True, type=bool, help='是否强化')  #
 parser.add_argument('--max_len', dest='max_len', default=60, type=int, help='测试时最大解码步数')
-parser.add_argument('--model_path', dest='model_path', default='log/run1585155439/027000000128358.model', type=str, help='载入模型位置')  #
+parser.add_argument('--model_path', dest='model_path', default='log/run1586332391/032000000152128.model', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')  #
 parser.add_argument('--max_epoch', dest='max_epoch', default=40, type=int, help='最大训练epoch')
@@ -231,7 +231,7 @@ def compute_loss(outputs, labels, masks):
     len_decoder = masks.size(1)  # 解码长度
     output_vocab = output_vocab.reshape(-1, config.num_vocab)  # [batch*len_decoder, num_vocab]
 
-    _nll_loss = F.nll_loss(output_vocab.clamp_min(1e-12).log(), labels.reshape(-1), reduction='none')
+    _nll_loss = F.nll_loss(output_vocab.clamp_min(1e-12).log(), labels_word.reshape(-1), reduction='none')
     _nll_loss = _nll_loss * masks.reshape(-1)  # 忽略掉不需要计算损失的token [batch*len_decoder]
 
     nll_loss = _nll_loss.reshape(-1, len_decoder).sum(1)  # 每个batch的nll损失 [batch]
