@@ -113,6 +113,14 @@ def main():
         ppl = (nll_loss / token_per_batch.clamp_min(1e-12)).exp().cpu().detach().numpy()  # [sample]
         score_ppl = (ppl - ppl.min()) / (ppl.max() - ppl.min())  # [sample]
 
+        # 语义
+        embed_posts = torch.cat([seq2seq.embedding(feed_data['posts']), seq2seq.affect_embedding(feed_data['posts'])], 2)
+        embed_responses = torch.cat([seq2seq.embedding(feed_data['responses']), seq2seq.affect_embedding(feed_data['responses'])], 2)
+        embed_posts = embed_posts.sum(1) / feed_data['len_posts'].float().unsqueeze(1).clamp_min(1e-12)  # [sample, 303]
+        embed_responses = embed_responses.sum(1) / feed_data['len_responses'].float().unsqueeze(1).clamp_min(1e-12)
+        score_cos = torch.cosine_similarity(embed_posts, embed_responses, 1).cpu().detach().numpy()  # [sample]
+        score_cos = (score_cos - score_cos.min()) / (score_cos.max() - score_cos.min())
+
         # 2. vad奖励分数
         vad_posts = np.array([sp.index2vad(id_post) for id_post in id_posts])[:, 1:]  # [sample, len, 3]
         vad_results = np.array([sp.index2vad(id_result) for id_result in id_results])[:, 1:]
@@ -136,19 +144,21 @@ def main():
         score_a = np.abs(post_a - result_a)
         score_d = np.abs(post_d - result_d)
         score_vad = score_v + score_a + score_d
+        baseline_score_vad = score_vad.mean()
+        score_vad = score_vad - baseline_score_vad
         score_vad = (score_vad - score_vad.min()) / (score_vad.max() - score_vad.min())
 
         # 3. 情感分数
-        score_af = ((vad_results - neutral_results) ** 2).sum(2) ** 0.5  # [sample, len]
-        token_per_batch = token_per_batch.cpu().detach().numpy() - 1  # [sample]
-        score_af = score_af.sum(1) / token_per_batch.clip(1e-12)
-        score_af = (score_af - score_af.min()) / (score_af.max() - score_af.min())
+        # score_af = ((vad_results - neutral_results) ** 2).sum(2) ** 0.5  # [sample, len]
+        # token_per_batch = token_per_batch.cpu().detach().numpy() - 1  # [sample]
+        # score_af = score_af.sum(1) / token_per_batch.clip(1e-12)
+        # score_af = (score_af - score_af.min()) / (score_af.max() - score_af.min())
 
         # 4. 句子长度
-        score_len = np.array([len(str_result) for str_result in str_results])  # [sample]
-        score_len = (score_len - score_len.min()) / (score_len.max() - score_len.min())
+        # score_len = np.array([len(str_result) for str_result in str_results])  # [sample]
+        # score_len = (score_len - score_len.min()) / (score_len.max() - score_len.min())
 
-        score = 0.2*score_ppl + 0.6*score_vad + 0.1*score_af + 0.1*score_len
+        score = 0.1*score_ppl + 0.4*score_vad + 0.5*score_cos
         output_id = score.argmax()
 
         output = {'post': str_post, 'response': str_response, 'result': str_results[output_id]}
@@ -158,9 +168,9 @@ def main():
         fwd.write('chosen response: {}\n'.format(' '.join(str_results[output_id])))
         fwd.write('response: {}\n'.format(' '.join(str_response)))
         for idx, str_result in enumerate(str_results):
-            fwd.write('candidate{}: {} (t:{:.2f} p:{:.2f} vad:{:.2f} af:{:.2f} l:{:.2f})\n'
-                      .format(idx, ' '.join(str_result), score[idx], 0.1*score_ppl[idx], 0.7*score_vad[idx],
-                              0.1*score_af[idx], 0.1*score_len[idx]))
+            fwd.write('candidate{}: {} (t:{:.2f} p:{:.2f} v:{:.2f} c:{:.2f})\n'
+                      .format(idx, ' '.join(str_result), score[idx], 0.1*score_ppl[idx], 0.4*score_vad[idx],
+                              0.5*score_cos[idx]))
         fwd.write('\n')
     fw.close()
     fwd.close()
