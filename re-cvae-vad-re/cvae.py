@@ -253,7 +253,7 @@ def compute_loss(outputs, labels, masks, global_step):
     nll_loss = _nll_loss.reshape(-1, len_decoder).sum(1)  # 每个batch的nll损失 [batch]
 
     # 情感重构损失
-    affect_loss = ((output_affect - labels_affect) ** 2).sum(2).sqrt().reshape(-1)  # [batch*len_decoder]
+    affect_loss = F.mse_loss(output_affect, labels_affect, reduction='none').sum(2).reshape(-1)  # [batch*len_decoder]
     affect_loss = (affect_loss * masks).reshape(-1, len_decoder).sum(1)  # [batch]
 
     # 2.ppl
