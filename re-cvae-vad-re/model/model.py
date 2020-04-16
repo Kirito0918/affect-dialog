@@ -102,11 +102,7 @@ class Model(nn.Module):
 
             outputs = torch.cat(outputs, 0).transpose(0, 1)  # [batch, len_decoder, dim_out]
             output_vocab = self.projector(outputs)  # [batch, len_decoder, num_vocab] 对每个单词预测的概率
-            if gpu:
-                # [batch, len_decoder, 3]
-                output_affect = output_vocab.matmul(self.affect_embedding(torch.arange(0, self.config.num_vocab).long().cuda()))
-            else:
-                output_affect = output_vocab.matmul(self.affect_embedding(torch.arange(0, self.config.num_vocab).long()))
+            output_affect = output_vocab.matmul(self.affect_embedding.embedding.weight)  # [batch, len_decoder, 3]
             return output_vocab, output_affect, _mu, _logvar, mu, logvar
         else:  # 测试
             id_posts = inputs['posts']  # [batch, seq]

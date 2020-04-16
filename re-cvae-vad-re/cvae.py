@@ -79,7 +79,7 @@ def main():
     print(f'载入vad字典: {len(vads)}个')
     print(f'vad维度: {config.affect_embedding_size}')
 
-    sentence_processor = SentenceProcessor(vocab, config.pad_id, config.start_id, config.end_id, config.unk_id)
+    sentence_processor = SentenceProcessor(vocab, vads, config.pad_id, config.start_id, config.end_id, config.unk_id)
 
     model = Model(config)
     model.print_parameters()  # 输出模型参数个数
@@ -214,6 +214,7 @@ def prepare_feed_data(data, inference=False):
                      'len_posts': torch.tensor(data['len_posts']).long(),  # [batch]
                      'responses': torch.tensor(data['responses']).long(),  # [batch, len_decoder]
                      'len_responses': torch.tensor(data['len_responses']).long(),  # [batch]
+                     'vad_responses': torch.tensor(data['vad_responses']).float(), # [batch, len_decoder, 3]
                      'sampled_latents': torch.randn((batch_size, config.latent_size)),
                      'masks': masks.float()}  # [batch, len_decoder]
     else:  # 测试时的输入
@@ -236,10 +237,11 @@ def compute_loss(outputs, labels, masks, global_step):
                               + (prior_mu - recog_mu).pow(2) / prior_logvar.exp(), 1)
         return kld  # [batch]
 
+    # labels_word: [batch, len_decoder, num_vocab]; labels_affect: [batch, len_decoder, 3]; mask: [batch, len_decoder]
     output_vocab, output_affect, _mu, _logvar, mu, logvar = outputs
     labels_word, labels_affect = labels
     token_per_batch = masks.sum(1)  # 每个样本要计算损失的token数 [batch]
-    len_decoder = masks.size(1)  # 解码长度 [b, l]
+    len_decoder = masks.size(1)  # 解码长度
 
     output_vocab = output_vocab.reshape(-1, config.num_vocab)  # [batch*len_decoder, num_vocab]
     labels_word = labels_word.reshape(-1)  # [batch*len_decoder]
@@ -271,8 +273,7 @@ def train(model, feed_data, global_step):
     output_vocab, output_affect, _mu, _logvar, mu, logvar = model(feed_data, gpu=args.gpu)  # 前向传播
     outputs = (output_vocab, output_affect, _mu, _logvar, mu, logvar)
     labels_word = feed_data['responses'][:, 1:]
-    with torch.no_grad():
-        labels_affect = model.affect_embedding(labels_word)  # [batch, len_decoder, 3]
+    labels_affect = feed_data['vad_responses'][:, 1:, :]  # [batch, len_decoder, 3]
     labels = (labels_word, labels_affect)
     masks = feed_data['masks']
     loss, nll_loss, affect_loss, kld_loss, kld_weight, ppl = compute_loss(outputs, labels, masks, global_step)  # 计算损失
@@ -286,8 +287,7 @@ def valid(model, data_processor, global_step):
         output_vocab, output_affect, _mu, _logvar, mu, logvar = model(feed_data, gpu=args.gpu)
         outputs = (output_vocab, output_affect, _mu, _logvar, mu, logvar)
         labels_word = feed_data['responses'][:, 1:]
-        with torch.no_grad():
-            labels_affect = model.affect_embedding(labels_word)  # [batch, len_decoder, 3]
+        labels_affect = feed_data['vad_responses'][:, 1:, :]  # [batch, len_decoder, 3]
         labels = (labels_word, labels_affect)
         masks = feed_data['masks']
         _, nll_loss, affect_loss, kld_loss, kld_weight, ppl = compute_loss(outputs, labels, masks, global_step)  # 计算损失

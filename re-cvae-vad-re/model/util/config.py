@@ -29,7 +29,7 @@ class Config(object):
     dims_recognize = [110]
 
     batch_size = 16
-    method = 'adam'  # in ['sgd', 'adam']
+    method = 'sgd'  # in ['sgd', 'adam']
     lr = 0.0001  # 初始学习率
     lr_decay = 1.0  # 学习率衰减，每过1个epoch衰减的百分比
     weight_decay = 0  # 权值decay
