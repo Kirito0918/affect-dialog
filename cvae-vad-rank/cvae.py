@@ -11,6 +11,7 @@ import json
 import os
 import time
 import numpy as np
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--trainset_path', dest='trainset_path', default='data/raw/dialogues_train_singleturn.txt', type=str, help='训练集位置')
@@ -24,7 +25,8 @@ parser.add_argument('--log_per_step', dest='log_per_step', default=20000, type=i
 parser.add_argument('--log_path', dest='log_path', default='log', type=str, help='记录模型位置')
 parser.add_argument('--inference', dest='inference', default=True, type=bool, help='是否测试')  #
 parser.add_argument('--max_len', dest='max_len', default=60, type=int, help='测试时最大解码步数')
-parser.add_argument('--model_path', dest='model_path', default='log/run1585566587/040000000190160.model', type=str, help='载入模型位置')  #
+parser.add_argument('--sample_times', dest='sample_times', default=20, type=int, help='测试时采样多少次')
+parser.add_argument('--model_path', dest='model_path', default='log/040000000190160.model', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')  #
 parser.add_argument('--max_epoch', dest='max_epoch', default=40, type=int, help='最大训练epoch')
@@ -171,31 +173,31 @@ def main():
     else:  # 测试
         if not os.path.exists(args.result_path):  # 创建结果文件夹
             os.makedirs(args.result_path)
-        result_file = os.path.join(args.result_path, '{:03d}{:012d}.txt'.format(epoch, global_step))  # 命名结果文件
-        fw = open(result_file, 'w', encoding='utf8')
 
         dp_test = DataProcessor(testset, config.batch_size, sentence_processor, shuffle=False)
 
         model.eval()  # 切换到测试模式，会停用dropout等等
-        nll_loss, kld_loss, ppl = valid(model, dp_test, global_step-1)
-        print('在测试集上的NLL损失为: {:g}, KL损失为: {:g}, PPL为: {:g}'.format(nll_loss, kld_loss, np.exp(ppl)))
+        for t in tqdm(range(args.sample_times)):
+            nll_loss, kld_loss, ppl = valid(model, dp_test, global_step-1)
+            print('在测试集上的NLL损失为: {:g}, KL损失为: {:g}, PPL为: {:g}'.format(nll_loss, kld_loss, np.exp(ppl)))
+            fw = open(os.path.join(args.result_path, f'sample_{t}.txt'), 'w', encoding='utf8')
+            len_results = []
 
-        len_results = []
-        for data in dp_test.get_batch_data():
-            posts = data['str_posts']
-            responses = data['str_responses']
-            feed_data = prepare_feed_data(data, inference=True)
-            results = test(model, feed_data)
-            for idx, result in enumerate(results):
-                new_data = dict()
-                new_data['post'] = posts[idx]
-                new_data['response'] = responses[idx]
-                new_data['result'] = sentence_processor.index2word(result)  # 将输出的句子转回单词的形式
-                len_results.append(len(new_data['result']))
-                fw.write(json.dumps(new_data, ensure_ascii=False) + '\n')
+            for data in dp_test.get_batch_data():
+                posts = data['str_posts']
+                responses = data['str_responses']
+                feed_data = prepare_feed_data(data, inference=True)
+                results = test(model, feed_data)
+                for idx, result in enumerate(results):
+                    new_data = dict()
+                    new_data['post'] = posts[idx]
+                    new_data['response'] = responses[idx]
+                    new_data['result'] = sentence_processor.index2word(result)  # 将输出的句子转回单词的形式
+                    len_results.append(len(new_data['result']))
+                    fw.write(json.dumps(new_data, ensure_ascii=False) + '\n')
 
-        fw.close()
-        print(f'生成句子平均长度: {1.0 * sum(len_results) / len(len_results)}')
+            fw.close()
+            print(f'生成句子平均长度: {1.0 * sum(len_results) / len(len_results)}')
 
 
 def prepare_feed_data(data, inference=False):
