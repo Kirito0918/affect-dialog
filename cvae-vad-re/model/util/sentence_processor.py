@@ -1,8 +1,9 @@
 
 class SentenceProcessor(object):
     r""" 实现了句子的word2index，index2word和pad """
-    def __init__(self, vocab, pad_id, start_id, end_id, unk_id):
+    def __init__(self, vocab, vads, pad_id, start_id, end_id, unk_id):
         self.vocab = vocab  # index to vocab的词汇表
+        self.vads = vads
         self.pad_id = pad_id
         self.start_id = start_id
         self.end_id = end_id
@@ -38,3 +39,11 @@ class SentenceProcessor(object):
         for _ in range(length - len(sentence)):
             sentence.append(self.pad_id)
         return sentence
+
+    def index2vad(self, id_sentence):
+        r""" 将句子的id转化成vad表示 """
+        vad_sentence = []
+        for idx in id_sentence:
+            vad_sentence.append(self.vads[idx])
+        return vad_sentence
+

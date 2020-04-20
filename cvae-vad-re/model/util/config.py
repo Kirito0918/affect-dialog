@@ -29,10 +29,11 @@ class Config(object):
     dims_recognize = [110]
 
     batch_size = 16
-    method = 'adam'  # in ['sgd', 'adam']
+    method = 'Adam'  # ['SGD', 'Adam', 'Adamax', 'RMSprop']
     lr = 0.0001  # 初始学习率
     lr_decay = 1.0  # 学习率衰减，每过1个epoch衰减的百分比
     weight_decay = 0  # 权值decay
+    eps = 1e-8
     max_grad_norm = 5
     kl_step = 4000  # 更新多少次参数之后kl项权值达到1
     dropout = 0.0

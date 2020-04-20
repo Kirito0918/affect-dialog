@@ -24,10 +24,10 @@ parser.add_argument('--log_per_step', dest='log_per_step', default=20000, type=i
 parser.add_argument('--log_path', dest='log_path', default='log', type=str, help='记录模型位置')
 parser.add_argument('--inference', dest='inference', default=False, type=bool, help='是否测试')  #
 parser.add_argument('--max_len', dest='max_len', default=60, type=int, help='测试时最大解码步数')
-parser.add_argument('--model_path', dest='model_path', default='log/run1586363147/040000000190160.model', type=str, help='载入模型位置')  #
+parser.add_argument('--model_path', dest='model_path', default='log//', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')  #
-parser.add_argument('--max_epoch', dest='max_epoch', default=100, type=int, help='最大训练epoch')
+parser.add_argument('--max_epoch', dest='max_epoch', default=80, type=int, help='最大训练epoch')
 
 args = parser.parse_args()  # 程序运行参数
 
@@ -79,7 +79,7 @@ def main():
     print(f'载入vad字典: {len(vads)}个')
     print(f'vad维度: {config.affect_embedding_size}')
 
-    sentence_processor = SentenceProcessor(vocab, config.pad_id, config.start_id, config.end_id, config.unk_id)
+    sentence_processor = SentenceProcessor(vocab, vads, config.pad_id, config.start_id, config.end_id, config.unk_id)
 
     model = Model(config)
     model.print_parameters()  # 输出模型参数个数
@@ -108,7 +108,7 @@ def main():
         model.to('cuda')  # 将模型参数转到gpu
 
     # 定义优化器参数
-    optim = Optim(config.method, config.lr, config.lr_decay, config.weight_decay, config.max_grad_norm)
+    optim = Optim(config.method, config.lr, config.lr_decay, config.weight_decay, config.eps, config.max_grad_norm)
     optim.set_parameters(model.parameters())  # 给优化器设置参数
     optim.update_lr(epoch)  # 每个epoch更新学习率
 
@@ -214,6 +214,7 @@ def prepare_feed_data(data, inference=False):
                      'len_posts': torch.tensor(data['len_posts']).long(),  # [batch]
                      'responses': torch.tensor(data['responses']).long(),  # [batch, len_decoder]
                      'len_responses': torch.tensor(data['len_responses']).long(),  # [batch]
+                     'vad_responses': torch.tensor(data['vad_responses']).float(),  # [batch, len_decoder, 3]
                      'sampled_latents': torch.randn((batch_size, config.latent_size)),
                      'masks': masks.float()}  # [batch, len_decoder]
     else:  # 测试时的输入
@@ -251,7 +252,7 @@ def compute_loss(outputs, labels, masks, global_step):
     nll_loss = _nll_loss.reshape(-1, len_decoder).sum(1)  # 每个batch的nll损失 [batch]
 
     # 情感重构损失
-    affect_loss = ((output_affect - labels_affect) ** 2).sum(2).sqrt().reshape(-1)  # [batch*len_decoder]
+    affect_loss = ((output_affect - labels_affect) ** 2).sum(2).reshape(-1)  # [batch*len_decoder]
     affect_loss = (affect_loss * masks).reshape(-1, len_decoder).sum(1)  # [batch]
 
     # 2.ppl
@@ -271,8 +272,7 @@ def train(model, feed_data, global_step):
     output_vocab, output_affect, _mu, _logvar, mu, logvar = model(feed_data, gpu=args.gpu)  # 前向传播
     outputs = (output_vocab, output_affect, _mu, _logvar, mu, logvar)
     labels_word = feed_data['responses'][:, 1:]
-    with torch.no_grad():
-        labels_affect = model.affect_embedding(labels_word)  # [batch, len_decoder, 3]
+    labels_affect = feed_data['vad_responses'][:, 1:, :]  # [batch, len_decoder, 3]
     labels = (labels_word, labels_affect)
     masks = feed_data['masks']
     loss, nll_loss, affect_loss, kld_loss, kld_weight, ppl = compute_loss(outputs, labels, masks, global_step)  # 计算损失
@@ -286,8 +286,7 @@ def valid(model, data_processor, global_step):
         output_vocab, output_affect, _mu, _logvar, mu, logvar = model(feed_data, gpu=args.gpu)
         outputs = (output_vocab, output_affect, _mu, _logvar, mu, logvar)
         labels_word = feed_data['responses'][:, 1:]
-        with torch.no_grad():
-            labels_affect = model.affect_embedding(labels_word)  # [batch, len_decoder, 3]
+        labels_affect = feed_data['vad_responses'][:, 1:, :]  # [batch, len_decoder, 3]
         labels = (labels_word, labels_affect)
         masks = feed_data['masks']
         _, nll_loss, affect_loss, kld_loss, kld_weight, ppl = compute_loss(outputs, labels, masks, global_step)  # 计算损失

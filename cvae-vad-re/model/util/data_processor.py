@@ -41,11 +41,13 @@ class DataProcessor(object):
 
             pad_id_posts = [self.sp.pad_sentence(p, maxlen_post) for p in id_posts]  # 补齐长度
             pad_id_responses = [self.sp.pad_sentence(r, maxlen_response) for r in id_responses]
+            vad_responses = [self.sp.index2vad(item) for item in pad_id_responses]
 
             new_batch_data = {'str_posts': str_posts,
                               'str_responses': str_responses,
                               'posts': pad_id_posts,
                               'responses': pad_id_responses,
+                              'vad_responses': vad_responses,
                               'len_posts': len_posts,
                               'len_responses': len_responses}
 

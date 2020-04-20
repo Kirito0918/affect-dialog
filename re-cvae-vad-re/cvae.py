@@ -214,7 +214,7 @@ def prepare_feed_data(data, inference=False):
                      'len_posts': torch.tensor(data['len_posts']).long(),  # [batch]
                      'responses': torch.tensor(data['responses']).long(),  # [batch, len_decoder]
                      'len_responses': torch.tensor(data['len_responses']).long(),  # [batch]
-                     'vad_responses': torch.tensor(data['vad_responses']).float(), # [batch, len_decoder, 3]
+                     'vad_responses': torch.tensor(data['vad_responses']).float(),  # [batch, len_decoder, 3]
                      'sampled_latents': torch.randn((batch_size, config.latent_size)),
                      'masks': masks.float()}  # [batch, len_decoder]
     else:  # 测试时的输入
