@@ -13,9 +13,9 @@ import time
 import numpy as np
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--trainset_path', dest='trainset_path', default='data/raw/dialogues_train_singleturn.txt', type=str, help='训练集位置')
-parser.add_argument('--validset_path', dest='validset_path', default='data/raw/dialogues_validation_singleturn.txt', type=str, help='验证集位置')
-parser.add_argument('--testset_path', dest='testset_path', default='data/raw/dialogues_test_singleturn.txt', type=str, help='测试集位置')
+parser.add_argument('--trainset_path', dest='trainset_path', default='data/raw/newtrainset.txt', type=str, help='训练集位置')
+parser.add_argument('--validset_path', dest='validset_path', default='data/raw/newvalidset.txt', type=str, help='验证集位置')
+parser.add_argument('--testset_path', dest='testset_path', default='data/raw/newtestset.txt', type=str, help='测试集位置')
 parser.add_argument('--embed_path', dest='embed_path', default='data/embed.txt', type=str, help='词向量位置')
 parser.add_argument('--vad_path', dest='vad_path', default='data/vad.txt', type=str, help='vad位置')
 parser.add_argument('--result_path', dest='result_path', default='result', type=str, help='测试结果位置')
@@ -108,7 +108,7 @@ def main():
         model.to('cuda')  # 将模型参数转到gpu
 
     # 定义优化器参数
-    optim = Optim(config.method, config.lr, config.lr_decay, config.weight_decay, config.max_grad_norm)
+    optim = Optim(config.method, config.lr, config.lr_decay, config.weight_decay, config.eps, config.max_grad_norm)
     optim.set_parameters(model.parameters())  # 给优化器设置参数
     optim.update_lr(epoch)  # 每个epoch更新学习率
 
