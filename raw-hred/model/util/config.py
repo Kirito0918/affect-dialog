@@ -22,9 +22,10 @@ class Config(object):
 
     # 优化参数
     batch_size = 16
-    method = 'adam'  # in ['sgd', 'adam']
+    method = 'Adam'  # in ['SGD', 'Adam', 'Adamax', 'RMSprop']
     lr = 0.0001  # 初始学习率
     lr_decay = 1.0  # 学习率衰减，每过1个epoch衰减的百分比
     weight_decay = 0  # 权值decay
+    eps = 1e-8
     max_grad_norm = 5
     dropout = 0.0  # 这里只有编解码器设置了dropout
