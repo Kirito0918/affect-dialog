@@ -108,7 +108,7 @@ def main():
         model.to('cuda')  # 将模型参数转到gpu
 
     # 定义优化器参数
-    optim = Optim(config.method, config.lr, config.lr_decay, config.weight_decay, config.max_grad_norm)
+    optim = Optim(config.method, config.lr, config.lr_decay, config.weight_decay, config.eps, config.max_grad_norm)
     optim.set_parameters(model.parameters())  # 给优化器设置参数
     optim.update_lr(epoch)  # 每个epoch更新学习率
 
