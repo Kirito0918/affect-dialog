@@ -35,7 +35,7 @@ class Model(nn.Module):
         self.response_encoder = Encoder(config.encoder_cell_type,
                                         config.embedding_size + config.affect_embedding_size,
                                         config.encoder_output_size,
-                                        config.encoder_num_layers,
+                                        config.decoder_num_layers,
                                         config.encoder_bidirectional,
                                         config.dropout)
 

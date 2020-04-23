@@ -57,8 +57,8 @@ class Model(nn.Module):
             # state: [layers, batch, dim]
             _, state_encoder = self.encoder(embed_posts.transpose(0, 1), len_posts)
             if isinstance(state_encoder, tuple):
-                state_encoder = state_encoder[0]
-            context = state_encoder[-1, :, :].unsqueeze(0)  # [1, batch, dim]
+                context = state_encoder[0]
+            context = context[-1, :, :].unsqueeze(0)  # [1, batch, dim]
 
             # 解码器的输入为回复去掉end_id
             decoder_inputs = embed_responses[:, :-1, :].transpose(0, 1)  # [seq-1, batch, embed_size]
