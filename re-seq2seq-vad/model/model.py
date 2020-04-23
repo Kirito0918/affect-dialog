@@ -90,8 +90,8 @@ class Model(nn.Module):
             # state: [layers, batch, dim]
             _, state_encoder = self.encoder(embed_posts.transpose(0, 1), len_posts)
             if isinstance(state_encoder, tuple):
-                state_encoder = state_encoder[0]
-            context = state_encoder[-1, :, :].unsqueeze(0)  # [1, batch, dim]
+                context = state_encoder[0]
+            context = context[-1, :, :].unsqueeze(0)  # [1, batch, dim]
 
             done = torch.tensor([0] * batch_size).bool()
             first_input_id = (torch.ones((1, batch_size)) * self.config.start_id).long()
