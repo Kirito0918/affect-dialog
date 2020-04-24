@@ -29,7 +29,7 @@ parser.add_argument('--sample_times', dest='sample_times', default=20, type=int,
 parser.add_argument('--model_path', dest='model_path', default='log/040000000190160.model', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')  #
-parser.add_argument('--max_epoch', dest='max_epoch', default=40, type=int, help='最大训练epoch')
+parser.add_argument('--max_epoch', dest='max_epoch', default=16, type=int, help='最大训练epoch')
 
 args = parser.parse_args()  # 程序运行参数
 
