@@ -19,7 +19,7 @@ class Config(object):
     post_encoder_bidirectional = True  # 是否是双向rnn
 
     # response编码器参数
-    response_encoder_cell_type = 'LSTM'  # in ['GRU', 'LSTM']
+    response_encoder_cell_type = 'GRU'  # in ['GRU', 'LSTM']
     response_encoder_output_size = 128
     response_encoder_num_layers = 1
     response_encoder_bidirectional = True
