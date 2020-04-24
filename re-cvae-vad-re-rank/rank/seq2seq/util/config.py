@@ -13,13 +13,13 @@ class Config(object):
     embedding_size = 300
 
     # 编码器解码器层数/输出大小
-    encoder_decoder_cell_type = 'GRU'  # in ['GRU', 'LSTM']
-    encoder_decoder_num_layers = 1
-    encoder_decoder_output_size = 128
+    encoder_decoder_cell_type = 'LSTM'  # in ['GRU', 'LSTM']
+    encoder_decoder_num_layers = 2
+    encoder_decoder_output_size = 300
     encoder_bidirectional = True  # 是否是双向rnn
 
     # 优化参数
-    batch_size = 16
+    batch_size = 32
     method = 'adam'  # in ['sgd', 'adam']
     lr = 0.0001  # 初始学习率
     lr_decay = 1.0  # 学习率衰减，每过1个epoch衰减的百分比
