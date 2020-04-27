@@ -14,7 +14,7 @@ import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--trainset_path', dest='trainset_path', default='data/raw/newtrainset.txt', type=str, help='训练集位置')
-parser.add_argument('--validset_path', dest='validset_path', default='data/rawnewvalidset.txt', type=str, help='验证集位置')
+parser.add_argument('--validset_path', dest='validset_path', default='data/raw/newvalidset.txt', type=str, help='验证集位置')
 parser.add_argument('--testset_path', dest='testset_path', default='data/raw/newtestset.txt', type=str, help='测试集位置')
 parser.add_argument('--embed_path', dest='embed_path', default='data/embed.txt', type=str, help='词向量位置')
 parser.add_argument('--result_path', dest='result_path', default='result', type=str, help='测试结果位置')
