@@ -26,7 +26,7 @@ parser.add_argument('--log_path', dest='log_path', default='log', type=str, help
 parser.add_argument('--inference', dest='inference', default=True, type=bool, help='是否测试')  #
 parser.add_argument('--max_len', dest='max_len', default=60, type=int, help='测试时最大解码步数')
 parser.add_argument('--sample_times', dest='sample_times', default=20, type=int, help='测试时采样多少次')
-parser.add_argument('--model_path', dest='model_path', default='log/040000000190160.model', type=str, help='载入模型位置')  #
+parser.add_argument('--model_path', dest='model_path', default='log/015000001115000.model', type=str, help='载入模型位置')  #
 parser.add_argument('--seed', dest='seed', default=666, type=int, help='随机种子')  #
 parser.add_argument('--gpu', dest='gpu', default=True, type=bool, help='是否使用gpu')  #
 parser.add_argument('--max_epoch', dest='max_epoch', default=16, type=int, help='最大训练epoch')
