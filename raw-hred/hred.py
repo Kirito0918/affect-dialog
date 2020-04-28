@@ -189,13 +189,12 @@ def main():
 
 
 def prepare_feed_data(data, inference=False):
-    print(data)
     len_labels = torch.tensor([l - 1 for l in data['len_responses']]).long()  # [batch] 标签没有start_id，长度-1
     masks = (1 - F.one_hot(len_labels, len_labels.max() + 1).cumsum(1))[:, :-1]  # [batch, len_decoder]
 
     if not inference:  # 训练时的输入
-        feed_data = {'posts': torch.tensor(data['posts']).long(),  # [batch, len_u, len_encoder]
-                     'len_posts': torch.tensor(data['len_posts']).long(),  # [batch, len_u]
+        feed_data = {'posts': torch.tensor(data['posts']).long(),  # [batch, turn, len_encoder]
+                     'len_posts': torch.tensor(data['len_posts']).long(),  # [batch, turn]
                      'responses': torch.tensor(data['responses']).long(),  # [batch, len_decoder]
                      'turn_posts': torch.tensor(data['turn_posts']).long(),  # [batch]
                      'masks': masks.float()}  # [batch, len_decoder]

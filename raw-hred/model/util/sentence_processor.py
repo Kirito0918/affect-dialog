@@ -41,4 +41,4 @@ class SentenceProcessor(object):
 
     def get_pad_sentence(self, length):
         r""" 得到一定长度的空句子 """
-        return [self.pad_id] * length
+        return [self.start_id] + [self.end_id] + [self.pad_id] * (length-2)

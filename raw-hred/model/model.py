@@ -67,6 +67,7 @@ class Model(nn.Module):
                 context_encoder_input = state_encoder[-1, :, :]  # [batch*turn, dim]
             context_encoder_input = context_encoder_input.reshape(batch_size, len_turn, -1)  # [batch, turn, dim]
 
+            # state_context_encoder: [layers, batch, dim]
             _, state_context_encoder = self.context_encoder(context_encoder_input.transpose(0, 1), turn_posts)
             if isinstance(state_context_encoder, tuple):
                 context = state_context_encoder[0][-1, :, :]  # [batch, dim]
@@ -80,7 +81,7 @@ class Model(nn.Module):
             outputs = []
             for idx in range(len_decoder):
                 if idx == 0:
-                    state = state_encoder  # 解码器初始状态
+                    state = state_context_encoder  # 解码器初始状态
                 decoder_input = torch.cat([decoder_inputs[idx], context.unsqueeze(0)], 2)  # 当前时间步输入
 
                 # output: [1, batch, dim_out]

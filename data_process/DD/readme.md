@@ -24,7 +24,7 @@ dialogues_validation_manyturns.txt
 7轮对话共2091个数据
 8轮对话共1582个数据
 共32165个数据
-dialogues_test_manyturns.txt
+dialogues_test_manyturns.txt共6740个数据
 1轮对话共6740个数据
 2轮对话共5740个数据
 3轮对话共4782个数据
