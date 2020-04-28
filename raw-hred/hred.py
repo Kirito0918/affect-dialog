@@ -161,7 +161,9 @@ def main():
         if not os.path.exists(args.result_path):  # 创建结果文件夹
             os.makedirs(args.result_path)
         result_file = os.path.join(args.result_path, '{:03d}{:012d}.txt'.format(epoch, global_step))  # 命名结果文件
+        detail_file = os.path.join(args.result_path, '{:03d}{:012d}_detail.txt'.format(epoch, global_step))
         fw = open(result_file, 'w', encoding='utf8')
+        fd = open(detail_file, 'w', encoding='utf8')
 
         dp_test = DataProcessor(testset, config.batch_size, sentence_processor, shuffle=False)
 
@@ -182,9 +184,13 @@ def main():
                 new_data['response'] = responses[idx]
                 new_data['result'] = sentence_processor.index2word(result)  # 将输出的句子转回单词的形式
                 len_results.append(len(new_data['result']))
-                fw.write(json.dumps(new_data) + '\n')
+                fw.write(json.dumps(new_data, ensure_ascii=False) + '\n')
+                fd.write('history: {}\n'.format(' '.join(posts[idx][-1])))
+                fd.write('result: {}\n'.format(' '.join(sentence_processor.index2word(result))))
+                fd.write('result: {}\n\n'.format(' '.join(responses[idx])))
 
         fw.close()
+        fd.close()
         print(f'生成句子平均长度: {1.0 * sum(len_results) / len(len_results)}')
 
 
