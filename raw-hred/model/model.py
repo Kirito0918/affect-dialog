@@ -124,10 +124,10 @@ class Model(nn.Module):
             outputs = []
             for idx in range(max_len):
                 if idx == 0:  # 第一个时间步
-                    state = state_encoder  # 解码器初始状态
-                    decoder_input = torch.cat([self.embedding(first_input_id), context.unsqeeze(0)], 2)  # 解码器初始输入
+                    state = state_context_encoder  # 解码器初始状态
+                    decoder_input = torch.cat([self.embedding(first_input_id), context.unsqueeze(0)], 2)  # 解码器初始输入
                 else:
-                    decoder_input = torch.cat([self.embedding(next_input_id), context.unsqeeze(0)], 2)
+                    decoder_input = torch.cat([self.embedding(next_input_id), context.unsqueeze(0)], 2)
                 # output: [1, batch, dim_out]
                 # state: [num_layers, batch, dim_out]
                 output, state = self.decoder(decoder_input, state)
