@@ -59,6 +59,8 @@ class Model(nn.Module):
             _, state_encoder = self.encoder(embed_posts.transpose(0, 1), len_posts)
             if isinstance(state_encoder, tuple):
                 context = state_encoder[0]
+            else:
+                context = state_encoder
             context = context[-1, :, :].unsqueeze(0)  # [1, batch, dim]
 
             # 解码器的输入为回复去掉end_id
@@ -93,6 +95,8 @@ class Model(nn.Module):
             _, state_encoder = self.encoder(embed_posts.transpose(0, 1), len_posts)
             if isinstance(state_encoder, tuple):
                 context = state_encoder[0]
+            else:
+                context = state_encoder
             context = context[-1, :, :].unsqueeze(0)  # [1, batch, dim]
 
             done = torch.tensor([0] * batch_size).bool()
