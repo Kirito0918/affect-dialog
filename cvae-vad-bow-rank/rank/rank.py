@@ -114,7 +114,7 @@ def main():
         score_ppl = (ppl - ppl.min()) / (ppl.max() - ppl.min())  # [sample]
 
         # 语义
-        embed_posts = torch.cat([seq2seq.embedding(feed_data['posts']), seq2seq.affect_embedding(feed_data['posts'])], 2)
+        embed_posts = torch.cat([seq2seq.embedding(feed_data['posts']), seq2seq.affect_embedding(feed_data['posts'])], 2)  # [sample, len, 303]
         embed_responses = torch.cat([seq2seq.embedding(feed_data['responses']), seq2seq.affect_embedding(feed_data['responses'])], 2)
         embed_posts = embed_posts.sum(1) / feed_data['len_posts'].float().unsqueeze(1).clamp_min(1e-12)  # [sample, 303]
         embed_responses = embed_responses.sum(1) / feed_data['len_responses'].float().unsqueeze(1).clamp_min(1e-12)
@@ -158,7 +158,7 @@ def main():
         # score_len = np.array([len(str_result) for str_result in str_results])  # [sample]
         # score_len = (score_len - score_len.min()) / (score_len.max() - score_len.min())
 
-        score = 1.0 / 3 * score_ppl + 1.0 / 3 * score_vad + 1.0 / 3 * score_cos
+        score = 0.1 * score_ppl + 0.4 * score_vad + 0.5 * score_cos
         output_id = score.argmax()
 
         output = {'post': str_post, 'response': str_response, 'result': str_results[output_id]}
@@ -169,8 +169,8 @@ def main():
         fwd.write('response: {}\n'.format(' '.join(str_response)))
         for idx, str_result in enumerate(str_results):
             fwd.write('candidate{}: {} (t:{:.2f} p:{:.2f} v:{:.2f} c:{:.2f})\n'
-                      .format(idx, ' '.join(str_result), score[idx], 1.0 / 3 * score_ppl[idx], 1.0 / 3 * score_vad[idx],
-                              1.0 / 3 * score_cos[idx]))
+                      .format(idx, ' '.join(str_result), score[idx], 0.1 * score_ppl[idx], 0.4 * score_vad[idx],
+                              0.5 * score_cos[idx]))
         fwd.write('\n')
     fw.close()
     fwd.close()
