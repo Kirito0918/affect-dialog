@@ -158,7 +158,7 @@ def main():
         # score_len = np.array([len(str_result) for str_result in str_results])  # [sample]
         # score_len = (score_len - score_len.min()) / (score_len.max() - score_len.min())
 
-        score = 0.3 * score_ppl + 0.3 * score_vad + 0.4 * score_cos
+        score = 0.1 * score_ppl + 0.4 * score_vad + 0.5 * score_cos
         output_id = score.argmax()
 
         output = {'post': str_post, 'response': str_response, 'result': str_results[output_id]}
@@ -169,8 +169,8 @@ def main():
         fwd.write('response: {}\n'.format(' '.join(str_response)))
         for idx, str_result in enumerate(str_results):
             fwd.write('candidate{}: {} (t:{:.2f} p:{:.2f} v:{:.2f} c:{:.2f})\n'
-                      .format(idx, ' '.join(str_result), score[idx], 0.3*score_ppl[idx], 0.3*score_vad[idx],
-                              0.4*score_cos[idx]))
+                      .format(idx, ' '.join(str_result), score[idx], 0.1*score_ppl[idx], 0.4*score_vad[idx],
+                              0.5*score_cos[idx]))
         fwd.write('\n')
     fw.close()
     fwd.close()
